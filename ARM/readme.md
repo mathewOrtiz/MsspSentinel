@@ -4,5 +4,5 @@ These two arm templates will need to be run in order to ensure that the necessar
 
 The following is the order in which the ARM templates will need to be run 
 
-* NtiretyMsspAzureResources
-* NtiretySentinelOffering
+# NtiretyMsspAzureResources
+# NtiretySentinelOffering
