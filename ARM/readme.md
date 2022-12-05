@@ -5,6 +5,9 @@ These two arm templates will need to be run in order to ensure that the necessar
 The following is the order in which the ARM templates will need to be run 
 
 1. NtiretyMsspAzureResources
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://raw.githubusercontent.com/mathewOrtiz/MsspSentinel/main/ARM/NtiretyMsspAzureResources.json)
+
+
 
 
 2. NtiretySentinelOffering
