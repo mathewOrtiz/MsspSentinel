@@ -1,0 +1,111 @@
+{
+ "$schema": "https://schema.management.azure.com/schemas/2019-08-01/subscriptionDeploymentTemplate.json#",
+ "contentVersion": "1.0.0.0",
+ "parameters": {
+  "mspOfferName": {
+   "type": "string",
+   "metadata": {
+    "description": "Specify a unique name for your offer"
+   },
+   "defaultValue": "Ntirety MSSP"
+  },
+  "mspOfferDescription": {
+   "type": "string",
+   "metadata": {
+    "description": "Name of the Managed Service Provider offering"
+   },
+   "defaultValue": "This will provide the Ntirety SOC with access to the Azure Sentinel instance."
+  },
+  "rgName": {
+   "type": "string",
+   "defaultValue": ""
+  }
+ },
+ "variables": {
+  "mspRegistrationName": "[guid(parameters('mspOfferName'))]",
+  "mspAssignmentName": "[guid(parameters('mspOfferName'))]",
+  "managedByTenantId": "984cdaad-80ea-4659-a39b-0a3b3f0c7bfb",
+  "authorizations": [
+   {
+    "principalId": "e3253779-d54c-49e9-98e8-b3e3bdb284a0",
+    "roleDefinitionId": "ab8e14d6-4a74-4a29-9ba8-549422addade",
+    "principalIdDisplayName": "Security Engineering"
+   },
+   {
+    "principalId": "b864df83-6019-4632-b2c8-e8bd834ae173",
+    "roleDefinitionId": "ab8e14d6-4a74-4a29-9ba8-549422addade",
+    "principalIdDisplayName": "SocLevel1"
+   },
+   {
+    "principalId": "26dba983-7d94-44df-b2e4-5bce3ae52754",
+    "roleDefinitionId": "ab8e14d6-4a74-4a29-9ba8-549422addade",
+    "principalIdDisplayName": "SocLevel2"
+   },
+   {
+    "principalId": "e3253779-d54c-49e9-98e8-b3e3bdb284a0",
+    "roleDefinitionId": "8d289c81-5878-46d4-8554-54e1e3d8b5cb",
+    "principalIdDisplayName": "Security Engineering"
+   },
+   {
+    "principalId": "b864df83-6019-4632-b2c8-e8bd834ae173",
+    "roleDefinitionId": "8d289c81-5878-46d4-8554-54e1e3d8b5cb",
+    "principalIdDisplayName": "SocLevel1"
+   },
+   {
+    "principalId": "26dba983-7d94-44df-b2e4-5bce3ae52754",
+    "roleDefinitionId": "8d289c81-5878-46d4-8554-54e1e3d8b5cb",
+    "principalIdDisplayName": "SocLevel2"
+   }
+  ]
+ },
+ "resources": [
+  {
+   "type": "Microsoft.ManagedServices/registrationDefinitions",
+   "apiVersion": "2020-02-01-preview",
+   "name": "[variables('mspRegistrationName')]",
+   "properties": {
+    "registrationDefinitionName": "[parameters('mspOfferName')]",
+    "description": "[parameters('mspOfferDescription')]",
+    "managedByTenantId": "[variables('managedByTenantId')]",
+    "authorizations": "[variables('authorizations')]"
+   }
+  },
+  {
+   "type": "Microsoft.Resources/deployments",
+   "apiVersion": "2018-05-01",
+   "name": "rgAssignment",
+   "resourceGroup": "[parameters('rgName')]",
+   "dependsOn": [
+    "[resourceId('Microsoft.ManagedServices/registrationDefinitions/', variables('mspRegistrationName'))]"
+   ],
+   "properties": {
+    "mode": "Incremental",
+    "template": {
+     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+     "contentVersion": "1.0.0.0",
+     "parameters": {},
+     "resources": [
+      {
+       "type": "Microsoft.ManagedServices/registrationAssignments",
+       "apiVersion": "2020-02-01-preview",
+       "name": "[variables('mspAssignmentName')]",
+       "properties": {
+        "registrationDefinitionId": "[resourceId('Microsoft.ManagedServices/registrationDefinitions/', variables('mspRegistrationName'))]"
+       }
+      }
+     ]
+    }
+   }
+  }
+ ],
+ "outputs": {
+  "mspOfferName": {
+   "type": "string",
+   "value": "[concat('Managed by', ' ', parameters('mspOfferName'))]"
+  },
+  "authorizations": {
+   "type": "array",
+   "value": "[variables('authorizations')]"
+  }
+ }
+}
