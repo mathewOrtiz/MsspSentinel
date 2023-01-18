@@ -1,1 +1,83 @@
+The following below is a list of the analytical rules which will need to be imported in order to ensure proper monitoring by default Sentinel Rules
 
+
+KNOTWEED AV Detection
+Dev-0530 IOC - July 2022
+Prestige ransomware IOCs Oct 2022
+DEV-0270 New User Creation
+Dev-0270 WMIC Discovery
+Identify SysAid Server web shell creation
+DEV-0322 Serv-U related IOCs - July 2021
+HAFNIUM UM Service writing suspicious file
+MSHTML vulnerability CVE-2021-40444 attack
+AdminSDHolder Modifications
+Dev-0270 Registry IOC - September 2022
+Exchange OAB Virtual Directory Attribute Containing Potential Webshell
+AD FS Abnormal EKU object identifier attribute
+Dumping LSASS Process Into a File
+Solorigate Named Pipe
+Credential Dumping Tools - Service Installation
+Dev-0270 Malicious Powershell usage
+Security Service Registry ACL Modification
+DEV-0586 Actor IOC - January 2022
+New EXE deployed via Default Domain or Default Domain Controller Policies
+Identify MERCURY powershell commands
+Registry Persistence via AppCert DLL Modification
+Potential Remote Desktop Tunneling
+ADFS DKM Master Key Export
+Azure AD Health Service Agents Registry Keys Access - Will require customers to make sure they have the necessary system config in place. We will need to reveiw. 
+Gain Code Execution on ADFS Server via SMB + Remote Service or Scheduled Task - requires customers to input their ADFS servers before it can be leveraged this should only be used after the tuning process has been completed. 
+NOBELIUM - suspicious rundll32.exe execution of vbscript
+Registry Persistence via AppInit DLLs Modification
+Email access via active sync - need to review the KQL to ensure that a device list is not required. 
+AAD Local Device Join Information and Transport Key Registry Keys Access
+NOBELIUM - Script payload stored in Registry
+Possible Resource-Based Constrained Delegation Abuse
+Exchange Server Vulnerabilities Disclosed March 2021 IoC Match
+Detecting Macro Invoking ShellBrowserWindow COM Objects
+ADFS Database Named Pipe Connection - this requires sysmon data in order to function  properly. As well as a list of ADFS servers. 
+TI map File Hash to Security Event
+NRT Security Event log cleared
+Group created then added to built in domain local or global group
+Starting or Stopping HealthService to Avoid Detection - this will require that the following is configured on the server Starting or Stopping HealthService to Avoid Detection
+HAFNIUM New UM Service Child Process - only used for customers that are running exchange on prem. 
+Windows Binaries Executed from Non-Default Directory
+Network endpoint to host executable correlation
+Azure AD Health Monitoring Agent Registry Keys Access - This rule requires that there be a entry in the ACE on the SACL of the following securable object HKLM\SOFTWARE\Microsoft\Microsoft Online\Reporting\MonitoringAgent.
+You can find more information in here https://github.com/OTRF/Set-AuditRule/blob/master/rules/registry/aad_connect_health_monitoring_agent.yml
+AD FS Remote HTTP Network Connection - this will require a list of ADFS Servers. 
+Alert for IOCs related to Windows/ELF malware - IP, Hash IOCs - September 2021 - PA Dupe
+Gain Code Execution on ADFS Server via Remote WMI Execution - requires a list of ADFS servers
+Service Principal Name (SPN) Assigned to User Account
+Powershell Empire cmdlets seen in command line
+TI map Email entity to SecurityEvent
+Fake computer account created
+Excessive number of failed connections from a single source (ASIM Network Session schema)
+Potential Kerberoasting - potentially very noisy rule should only be clicked on after the inital tuning phase is completed. 
+COM Event System Loading New DLL - this rule requires the use of sysmon on the systems. 
+Process execution frequency anomaly - this rule will require tuning the sensitivity values from 1.5 to 3 for the series_decompose_anomalies
+RDP Nesting
+SUNSPOT log file creation
+Base64 encoded Windows process command-lines
+Modification of Accessibility Features
+Sdelete deployed via GPO and run recursively
+Audit policy manipulation using auditpol utility - this may require the uncommenting of the process auditpol.exe
+Potential Build Process Compromise - This will likely require tuning depending on the systems on the customer environment, this can be done through adding process to the list. 
+AD FS Remote Auth Sync Connection - Will need to be tuned with the customers ADFS servers. 
+User account enabled and disabled within 10 mins
+NRT Process executed from binary hidden in Base64 encoded file
+Windows Binaries Lolbins Renamed
+Malware in the recycle bin
+Security Event log cleared
+WDigest downgrade attack - this should only be placed into the enabled state if the customer is using the WDigest authentication protocol. 
+Multiple RDP connections from Single System - will need to be tuned for those customers who are leveraging the agent on their endpoints with a list of admins most likely. 
+New user created and added to the built-in administrators group
+AD account with Don't Expire Password
+Account added and removed from privileged groups - this might require some tuning as it revolves around the adding of a account to a priv group. 
+SecurityEvent - Multiple authentication failures followed by a success
+Chia_Crypto_Mining - Domain, Process, Hash and IP IOCs - June 2021 - palo alto dupe.
+Potential beaconing activity (ASIM Network Session schema) - palo alto dupe
+Failed logon attempts by valid accounts within 10 mins
+User account added to built in domain local or global group
+Potential re-named sdelete usage
+AD user enabled and password not set within 48 hours
