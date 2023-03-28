@@ -30,7 +30,7 @@ foreach ($Subscription in Subscriptions){
 function RetentionSpecificCust{
     az account list --output table 
     $Subscription = Read-Host "Please enter the subscription context for the customer that you are working with"
-    az account set --subscription
+    az account set --$Subscription
     
     az group list --query '[].name'
     $ResourceGroups = Read-Host "Please enter the Resource group which contains the Log analytics workspace we will need to edit. "
