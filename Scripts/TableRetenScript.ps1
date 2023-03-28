@@ -6,34 +6,26 @@ function RetentionSet{
 #Creates a array with all of the subscriptions. 
 $Subscriptions = @(az account list --query '[].name')
 
-
 #Ensures that this is run against every subscription that we can reach. 
 foreach ($Subscription in Subscriptions){
 
-    #Collects our resource groups from each subscription and will associate itself with the resource group variable. 
+    #This line ensures that we are located in the first subscription out of our array that we created.
     az context set $Subscriptions
+    #This will prompt you to enter the resource group for the subscription.
     $ResourceGroups = az group list --query '[].name'
-    $WorkspaceNames = az monitor log-analytics workspace list --query '[].name'
+    #The following below should only pull log analytics workspaces that are in line with our naming convention.
+    $WorkspaceNames = az monitor log-analytics workspace list --query '[].name' | Select-String -Pattern 'H\d{6}'
 
     if($WorkspaceNames -ne "" ){
     #Collects the necessary table names
     $tables = @(az monitor log-analytics workspace table list --resource-group $ResourceGroups --workspace-name $WorkspaceNames --query '[].name' )
-    foreach ($name in $names){
-        Update-AzOperationalInsightsTable -ResourceGroupName $RgName -WorkspaceName $WorkName -TableName $name -RetentionInDays $RetenDays -TotalRetentionInDays $RetenTotal
+    foreach ($table in $tables){
+        az monitor log-analytics workspace table update --resource-group $ResourceGroups --workspace-name $WorkspaceNames -n $table --retenetion-days $RetentionDays --total-retention-time $RetentionTotal
         }
     }
     #the following will run when the LAW is empty
     else{
         continue
     }
-
-    #the following will actually work through every table in the list to modify the retention that is set to meet our standards.
-
-    foreach ($name in $names){
-        Update-AzOperationalInsightsTable -ResourceGroupName $RgName -WorkspaceName $WorkName -TableName $name -RetentionInDays $RetenDays -TotalRetentionInDays $RetenTotal
-        }
-    
-    
-    
     }
 }
