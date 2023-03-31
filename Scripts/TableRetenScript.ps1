@@ -57,45 +57,52 @@ function RetentionSpecificCust{
 
 
 ## The following function needs to be improved so that we can call the necessary info into the correct format into a CSV file    
-#function RetentionAudit{
-#   do{
-#   $SubsToAudit = Read-Host "Would you like to audit all of the subscriptions or just one? 
-#   1.) All Customers
-#   2.) Just One Customer subscription
-#   3.) Exit to Main menu
-#   
-#   Initialize array that will hold our users & their incorrect values.
-#   $FailedReten = @()
-#   "
-#   }until( $SubsToAudit -eq 1 -or $SubsToAudit -eq 2)
-#
-#   if($SubsToAudit = 1 ){
-#   
-#       $Subscriptions = @(az account list --query '[].name')
-#       $TableRetenAllCust = @()
-#   #Ensures that this is run against every subscription that we can reach. 
-#   foreach ($Subscription in Subscriptions){
-#
-#   #This line ensures that we are located in the first subscription out of our array that we created.
-#   az account set --subscription $Subscriptions
-#   #This will pull the Rgs and pull out only the ones that we created.
-#   $ResourceGroups = az group list --query '[].name' | Select-String 'H\d{6}'
-#   #The following below should only pull log analytics workspaces that are in line with our naming convention.
-#   $WorkspaceNames = az monitor log-analytics workspace list --query '[].name' | Select-String -Pattern 'H\d{6}'
-#
-#   #Ensures that our workspace name isn't empty & then runs using the Rg & WS name collected above. 
-#   if($WorkspaceNames -ne "" ){
-#   #Collects the necessary table names
-#   $tables = @(az monitor log-analytics workspace table list --resource-group $ResourceGroups --workspace-name $WorkspaceNames --query '[].{name:name,totalRetentionInDays:totalRetentionInDays}')| ConvertFrom-Json ` | Select-Object -Property name, totalRetentionInDays ` | Where-Object {$_totalRetentionInDays -le 365}
-#   
-#   #Adds the results of the retention to the 
-#   $TableRetenAllCust += $tables
-#   }
-#   #the following will run when the LAW is empty
-#   }
-#   }
-#
-#}
+function RetentionAudit{
+   do{
+   $SubsToAudit = Read-Host "Would you like to audit all of the subscriptions or just one? 
+   1.) All Customers
+   2.) Just One Customer subscription
+   3.) Exit to Main menu
+   "
+   ##We will use a hashtable which will hold our Subscription Name and Retention Compliance status.
+   $FailedReten = @()
+
+   
+   
+   }until( $SubsToAudit -eq 1 -or $SubsToAudit -eq 2)
+
+   if($SubsToAudit = 1 ){
+   
+       $Subscriptions = @(az account list --query '[].name')
+       $TableRetenAllCust = @()
+   #Ensures that this is run against every subscription that we can reach. 
+   foreach ($Subscription in Subscriptions){
+
+   #This line ensures that we are located in the first subscription out of our array that we created.
+   az account set --subscription $Subscriptions
+   az account show --query '[].name'
+   #This will pull the Rgs and pull out only the ones that we created.
+   $ResourceGroups = az group list --query '[].name' | Select-String 'H\d{6}'
+   #The following below should only pull log analytics workspaces that are in line with our naming convention.
+   $WorkspaceNames = az monitor log-analytics workspace list --query '[].name' | Select-String -Pattern 'H\d{6}'
+
+   #Ensures that our workspace name isn't empty & then runs using the Rg & WS name collected above. 
+   if($WorkspaceNames -ne "" ){
+   #Collects the necessary table names
+   $tables = @(az monitor log-analytics workspace table list --resource-group $ResourceGroups --workspace-name $WorkspaceNames --query '[].{name:name,totalRetentionInDays:totalRetentionInDays}')| ConvertFrom-Json ` | Select-Object -Property name, totalRetentionInDays ` | Where-Object {$_totalRetentionInDays -le 365}
+   
+   #Need to modify the below in order to have it take the inputs & outputs and added them to the array with the appropriate headings.
+   $Results += [pscustomobject]@{
+    SubscriptionID = $Subscription
+    FailedTables = $tables
+
+   }
+   }
+   #the following will run when the LAW is empty
+   }
+   }
+
+}
 
 ## Creates our menu to allow our users to select the necessary utility.
 function menu{
