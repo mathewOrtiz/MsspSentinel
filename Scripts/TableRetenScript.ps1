@@ -63,7 +63,9 @@ function RetentionSpecificCust{
 #   1.) All Customers
 #   2.) Just One Customer subscription
 #   3.) Exit to Main menu
-#
+#   
+#   Initialize array that will hold our users & their incorrect values.
+#   $FailedReten = @()
 #   "
 #   }until( $SubsToAudit -eq 1 -or $SubsToAudit -eq 2)
 #
@@ -95,7 +97,7 @@ function RetentionSpecificCust{
 #
 #}
 
-
+## Creates our menu to allow our users to select the necessary utility.
 function menu{
     param (
         [string]$Title = 'Select Option'
