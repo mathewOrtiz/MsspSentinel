@@ -88,13 +88,14 @@ function RetentionAudit{
 
    #Ensures that our workspace name isn't empty & then runs using the Rg & WS name collected above. 
    if($WorkspaceNames -ne "" ){
-   #Collects the necessary table names
+   #Collects the necessary table names which don't have the correct retention settings set.
    $tables = @(az monitor log-analytics workspace table list --resource-group $ResourceGroups --workspace-name $WorkspaceNames --query '[].{name:name,totalRetentionInDays:totalRetentionInDays}')| ConvertFrom-Json ` | Select-Object -Property name, totalRetentionInDays ` | Where-Object {$_totalRetentionInDays -le 365}
    
-   #Need to modify the below in order to have it take the inputs & outputs and added them to the array with the appropriate headings.
-   $Results += [pscustomobject]@{
+   #This will create the necessary array that is needed for holding our necessary values.
+   $FailedReten() += [pscustomobject]@{
     SubscriptionID = $Subscription
     FailedTables = $tables
+    Customer = $WorkspaceNames
 
    }
    }
