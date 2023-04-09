@@ -91,7 +91,11 @@ function RetentionAudit{
    #Collects the necessary table names which don't have the correct retention settings set.
    $tables = @(az monitor log-analytics workspace table list --resource-group $ResourceGroups --workspace-name $WorkspaceNames --query '[].{name:name,totalRetentionInDays:totalRetentionInDays}')| ConvertFrom-Json ` | Select-Object -Property name, totalRetentionInDays ` | Where-Object {$_totalRetentionInDays -le 365}
    
-   #This will create the necessary array that is needed for holding our necessary values.
+    
+   # Initialize the variables which will need to be passed to our customobject
+   $FailedReten = @()
+
+   #This will create the necessary array that is needed for holding our necessary values. The values for each variable are passed in from the earlier run of the function. 
    $FailedReten() += [pscustomobject]@{
     SubscriptionID = $Subscription
     FailedTables = $tables
