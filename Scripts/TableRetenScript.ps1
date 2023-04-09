@@ -74,7 +74,10 @@ function RetentionAudit{
    if($SubsToAudit = 1 ){
    
        $Subscriptions = @(az account list --query '[].name')
+
+       ##Declares our array which will house our necessary values 
        $TableRetenAllCust = @()
+       $CompliantTables
    #Ensures that this is run against every subscription that we can reach. 
    foreach ($Subscription in Subscriptions){
 
@@ -92,20 +95,37 @@ function RetentionAudit{
    $tables = @(az monitor log-analytics workspace table list --resource-group $ResourceGroups --workspace-name $WorkspaceNames --query '[].{name:name,totalRetentionInDays:totalRetentionInDays}')| ConvertFrom-Json ` | Select-Object -Property name, totalRetentionInDays ` | Where-Object {$_totalRetentionInDays -le 365}
    
     
-   # Initialize the variables which will need to be passed to our customobject
-   $FailedReten = @()
 
-   #This will create the necessary array that is needed for holding our necessary values. The values for each variable are passed in from the earlier run of the function. 
-   $FailedReten() += [pscustomobject]@{
+#The below will create a custom object when a customer has tables which fail the check.
+   if($tables -ne ""){
+   $TableRetenAllCust += [pscustomobject]@{
     SubscriptionID = $Subscription
     FailedTables = $tables
     Customer = $WorkspaceNames
 
-   }
-   }
+            }
+   #Added the elseif so we can create our necessary CSV with customer names in compliance 
+    elseif(-not $tables){
+$CompliantTables += [pscustomobject]@{
+    SubscriptionID = $Subscription
+    Customer = $WorkspaceNames
+}
+          }
+
+        }   
    #the following will run when the LAW is empty
-   }
-   }
+        }
+    }
+
+# the below will aggregate our failed tables in a csv by customer.   Need to set the path to be relative to where the script is running.
+$TableRetenAllCust | Group-Object Customer | ForEach-Object {
+   $CsvPath = "C:\TableRetenAllCust_$($_.Name).csv"
+   $_.Group | Export-Csv -Path $CsvPath -NoTypeInformation
+}
+CompliantTables | Group-Object Customer | ForEach-Object {
+   $CsvPath = "C:\TableRetenAllCust_$($_.Name).csv"
+   $_.Group | Export-Csv -Path $CsvPath -NoTypeInformation
+}
 
 }
 
