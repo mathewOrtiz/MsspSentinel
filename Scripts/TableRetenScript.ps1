@@ -57,45 +57,79 @@ function RetentionSpecificCust{
 
 
 ## The following function needs to be improved so that we can call the necessary info into the correct format into a CSV file    
-#function RetentionAudit{
-#   do{
-#   $SubsToAudit = Read-Host "Would you like to audit all of the subscriptions or just one? 
-#   1.) All Customers
-#   2.) Just One Customer subscription
-#   3.) Exit to Main menu
-#
-#   "
-#   }until( $SubsToAudit -eq 1 -or $SubsToAudit -eq 2)
-#
-#   if($SubsToAudit = 1 ){
-#   
-#       $Subscriptions = @(az account list --query '[].name')
-#       $TableRetenAllCust = @()
-#   #Ensures that this is run against every subscription that we can reach. 
-#   foreach ($Subscription in Subscriptions){
-#
-#   #This line ensures that we are located in the first subscription out of our array that we created.
-#   az account set --subscription $Subscriptions
-#   #This will pull the Rgs and pull out only the ones that we created.
-#   $ResourceGroups = az group list --query '[].name' | Select-String 'H\d{6}'
-#   #The following below should only pull log analytics workspaces that are in line with our naming convention.
-#   $WorkspaceNames = az monitor log-analytics workspace list --query '[].name' | Select-String -Pattern 'H\d{6}'
-#
-#   #Ensures that our workspace name isn't empty & then runs using the Rg & WS name collected above. 
-#   if($WorkspaceNames -ne "" ){
-#   #Collects the necessary table names
-#   $tables = @(az monitor log-analytics workspace table list --resource-group $ResourceGroups --workspace-name $WorkspaceNames --query '[].{name:name,totalRetentionInDays:totalRetentionInDays}')| ConvertFrom-Json ` | Select-Object -Property name, totalRetentionInDays ` | Where-Object {$_totalRetentionInDays -le 365}
-#   
-#   #Adds the results of the retention to the 
-#   $TableRetenAllCust += $tables
-#   }
-#   #the following will run when the LAW is empty
-#   }
-#   }
-#
-#}
+function RetentionAudit{
+   do{
+   $SubsToAudit = Read-Host "Would you like to audit all of the subscriptions or just one? 
+   1.) All Customers
+   2.) Just One Customer subscription
+   3.) Exit to Main menu
+   "
+   ##We will use a hashtable which will hold our Subscription Name and Retention Compliance status.
+   $FailedReten = @()
 
+   
+   
+   }until( $SubsToAudit -eq 1 -or $SubsToAudit -eq 2)
 
+   if($SubsToAudit = 1 ){
+   
+       $Subscriptions = @(az account list --query '[].name')
+
+       ##Declares our array which will house our necessary values 
+       $TableRetenAllCust = @()
+       $CompliantTables
+   #Ensures that this is run against every subscription that we can reach. 
+   foreach ($Subscription in Subscriptions){
+
+   #This line ensures that we are located in the first subscription out of our array that we created.
+   az account set --subscription $Subscriptions
+   az account show --query '[].name'
+   #This will pull the Rgs and pull out only the ones that we created.
+   $ResourceGroups = az group list --query '[].name' | Select-String 'H\d{6}'
+   #The following below should only pull log analytics workspaces that are in line with our naming convention.
+   $WorkspaceNames = az monitor log-analytics workspace list --query '[].name' | Select-String -Pattern 'H\d{6}'
+
+   #Ensures that our workspace name isn't empty & then runs using the Rg & WS name collected above. 
+   if($WorkspaceNames -ne "" ){
+   #Collects the necessary table names which don't have the correct retention settings set.
+   $tables = @(az monitor log-analytics workspace table list --resource-group $ResourceGroups --workspace-name $WorkspaceNames --query '[].{name:name,totalRetentionInDays:totalRetentionInDays}')| ConvertFrom-Json ` | Select-Object -Property name, totalRetentionInDays ` | Where-Object {$_totalRetentionInDays -le 365}
+   
+    
+
+#The below will create a custom object when a customer has tables which fail the check.
+   if($tables -ne ""){
+   $TableRetenAllCust += [pscustomobject]@{
+    SubscriptionID = $Subscription
+    FailedTables = $tables
+    Customer = $WorkspaceNames
+
+            }
+   #Added the elseif so we can create our necessary CSV with customer names in compliance 
+    elseif(-not $tables){
+$CompliantTables += [pscustomobject]@{
+    SubscriptionID = $Subscription
+    Customer = $WorkspaceNames
+}
+          }
+
+        }   
+   #the following will run when the LAW is empty
+        }
+    }
+
+# the below will aggregate our failed tables in a csv by customer.   Need to set the path to be relative to where the script is running.
+$TableRetenAllCust | Group-Object Customer | ForEach-Object {
+   $CsvPath = "C:\TableRetenAllCust_$($_.Name).csv"
+   $_.Group | Export-Csv -Path $CsvPath -NoTypeInformation
+}
+CompliantTables | Group-Object Customer | ForEach-Object {
+   $CsvPath = "C:\TableRetenAllCust_$($_.Name).csv"
+   $_.Group | Export-Csv -Path $CsvPath -NoTypeInformation
+}
+
+}
+
+## Creates our menu to allow our users to select the necessary utility.
 function menu{
     param (
         [string]$Title = 'Select Option'
