@@ -4,7 +4,7 @@ $RetentionTotal = 365
 ## The below function is used in order to set the retention for all of our tables to the standard 1 year setting. 
 function RetentionSetAllCustomers{
 #Creates a array with all of the subscriptions. 
-$Subscriptions = @(az account list --query '[].name')
+$Subscription = @(az account list --query '[].name')
 
 #Ensures that this is run against every subscription that we can reach. 
 foreach ($Subscription in Subscriptions){
