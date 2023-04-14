@@ -20,7 +20,7 @@ $Subscriptions = @(az account list --query '[].id')
 
 
 #Ensures that this is run against every subscription that we can reach. 
-foreach ($Subscription in Subscriptions){
+foreach ($Subscription in $Subscriptions){
 
 # this ensures that every subscription will have its own Job which is assigned to it at run time. Each job is labeled using the subscription of each customer that is reachable to the script.      
 Start-Job -Name $Subscription--ScriptBlock {
