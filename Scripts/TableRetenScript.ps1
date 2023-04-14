@@ -129,6 +129,7 @@ CompliantTables | Group-Object Customer | ForEach-Object {
 
 }
 
+}
 ## Creates our menu to allow our users to select the necessary utility.
 function menu{
     param (
