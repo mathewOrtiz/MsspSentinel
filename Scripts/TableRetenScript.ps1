@@ -7,7 +7,7 @@ function RetentionSetAllCustomers{
 $Subscription = @(az account list --query '[].name')
 
 #Ensures that this is run against every subscription that we can reach. 
-foreach ($Subscription in Subscriptions){
+foreach ($Subscription in $Subscriptions){
 
     #This line ensures that we are located in the first subscription out of our array that we created.
     az account set --subscription $Subscriptions
