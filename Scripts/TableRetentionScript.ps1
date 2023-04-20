@@ -41,6 +41,6 @@ $Subscriptions = @(az account list --query '[].id' --output tsv)
         continue
     }
 
-} -ArgumentList $Subscription -Name $Subscription
+} -Name $Subscription
     
 }
