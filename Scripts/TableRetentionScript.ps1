@@ -1,6 +1,11 @@
 ﻿$RetentionDays = 90
 $RetentionTotal = 365
 
+##Uncomment the below lines in order to have table retention set for all subscriptions to something different then the default 
+
+#$RetentionDays = Read-Host "What is the total amount of days that you would like to have hot storage available to you? "
+#$RetentionTotal = Read-Host "What is the total amount of time that you would like your retention configured for? This will be the amount of time to retain archival logs. "
+
 #Creates a array with all of the subscriptions. The output variable is needed in order to ensure that the formatting is correct
 $Subscriptions = @(az account list --query '[].id' --output tsv)
 
@@ -25,7 +30,7 @@ $Subscriptions = @(az account list --query '[].id' --output tsv)
         #the following will actually work through every table in the list to modify the retention that is set to meet our standards.
         foreach($table in $tables){
         Write-Output "For Loop hit"
-        az monitor log-analytics workspace table update --resource-group $ResourceGroups --workspace-name $WorkspaceNames --name $table --retention-time 90 --total-retention-time 365
+        az monitor log-analytics workspace table update --resource-group $ResourceGroups --workspace-name $WorkspaceNames --name $table --retention-time $RetentionDays --total-retention-time $RetentionTotal
         Write-Output "Table reten updated"
     }
     }
