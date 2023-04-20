@@ -11,9 +11,9 @@ $Subscriptions = @(az account list --query '[].id' --output tsv)
 
 #Ensures that this is run against every subscription that we can reach. 
     foreach ($Subscription in $Subscriptions){
+    Start-Job{
     #Collects our resource groups from each subscription and will associate itself with the resource group variable. 
     az account set --subscription $Subscription
-
     #queries our current subscription to ensure that we have the necessary role to make the table updates. 
     $Perms = az role assignment list --query '[].roleDefinitionName' --output table | Select-String -Pattern "Log Analytics Contributor"
     Write-Output $Perms
@@ -41,5 +41,6 @@ $Subscriptions = @(az account list --query '[].id' --output tsv)
         continue
     }
 
+} -ArgumentList $Subscription -Name $Subscription
     
 }
