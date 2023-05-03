@@ -53,19 +53,30 @@ function RetentionSpecificCust{
     az monitor log-analytics workspace list --query '[].name'
     WorkspaceName = Read-Host "Please enter the log analytics workspace name that you would like to edit the retention for. "
 
+    $CustReten = Read-Host "Would you like to set a custom retention period outside of the Ntirety Default of 90 days hot & 365 cold. Keep in mind changes outside of this should be vetted with the appropriate teams in regards to cost?
+    1. Yes
+    2. No"
+    if ($CustReten = 1){
+        $RetentionDays = Read-Host "What would you like the hot storage to be for this customer?"
+        $RetentionTotal = Read-Host "What would you like the cold storage to be for this customer"
+    }
+    elseif($CustReten = 2){
+        continue
+    }
+
     $RetenType = Read-Host "Would you like to edit all of the tables located within the subscription? or just change one specific tables retention setting? 
     1.) Proceed with changing retention for all tables
     2.) Proceed with only modifying a specific table. (Note that if you don't have the exact table name this command will not work.)
     "
     if ($RetenType = 1 ){
-        $tables = @(az monitor log-analytics workspace table list --resource-group $ResourceGroups --workspace-name $WorkspaceNames --query '[].name' )
+        $tables = @(az monitor log-analytics workspace table list --resource-group $ResourceGroups --workspace-name $WorkspaceName --query '[].name' --output table )
         foreach ($table in $tables){
-            az monitor log-analytics workspace table update --resource-group $ResourceGroups --workspace-name $WorkspaceNames -n $table --retention-time $RetentionDays --total-retention-time $RetentionTotal
+            az monitor log-analytics workspace table update --resource-group $ResourceGroups --workspace-name $WorkspaceName --name $table --retention-time $RetentionDays --total-retention-time $RetentionTotal
         }
     }
         elseif ($RetenType = 2 ){
         $TableName = Read-Host "Please enter the name of the table that you would like to edit. "
-        az monitor log-analytics workspace table update --resource-group $ResourceGroups --workspace-name $WorkspaceNames -n $TableName --retention-time $RetentionDays --total-retention-time $RetentionTotal
+        az monitor log-analytics workspace table update --resource-group $ResourceGroups --workspace-name $WorkspaceName --name $TableName --retention-time $RetentionDays --total-retention-time $RetentionTotal
     }
 
     }
