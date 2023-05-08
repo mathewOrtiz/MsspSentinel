@@ -20,5 +20,11 @@ Write-Host "You will need to know the log analytics workspace of the customer.
 Unsure? Select one of our greatest "
 
 function ImportAll{
+$WorkSpaceName = az monitor log-analytics workspace list --query '[].name'
+$ResourceGroups = az group list --query '[].name' --output table | Select-String 'AzureSentinel'
 
+foreach($Rule in $Rules){
+    #The below needs to be modified with the template uri instead of template file initialization. This will ensure that we can use a array which has the values of all our template files. 
+    az deployment group create --resource-group $ResourceGroups --template-file $Rule --parameter worksapce="$WorkSpaceName"
+}
 }
