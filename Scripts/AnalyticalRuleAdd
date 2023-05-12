@@ -1,0 +1,26 @@
+$Subscriptions = @(az account list --query '[].id' --output tsv)
+$TemplateFile = Read-Host "please enter the file name of the analytical rule you are wanting to import"
+Write-Output "You will need to input the rule ID associated with this rule - xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+$RuleRemove = Read-Host "Please enter the name of the analytical rule that you want to remove."
+
+Write-Output "We wil now remove the analytical rule $RuleRemove"
+foreach($Subscription in $Subscriptions){
+az account set -s $Subscription
+$ResourceGroups = az group list --query '[].name' --output table | Select-String -Pattern "^H"
+$WorkspaceNames = az monitor log-analytics workspace list --query '[].name' --output table | Select-String -Pattern "^H"
+az sentinel alert-rule delete --resource-group $ResourceGroups --workspace-name $WorkspaceNames -n $RuleRemove -y
+}
+
+Write-Output "We have removed the old rule & we will now import the new rule."
+
+#Start-Job has been commented out due to conflict with how Azure is loading the ARM template. This cause the ARM template to not load into the customers log analytics instance incorrectly.
+
+foreach($Subscription in $Subscriptions){
+#Start-Job{
+az account set -s $Subscription
+$ResourceGroups = az group list --query '[].name' --output table | Select-String -Pattern "^H"
+$WorkspaceNames = az monitor log-analytics workspace list --query '[].name' --output table | Select-String -Pattern "^H"
+az deployment group create --resource-group $ResourceGroups --template-file $TemplateFile --parameters workspace="$WorkspaceNames" 
+
+#	} -Name $Subscription
+}
