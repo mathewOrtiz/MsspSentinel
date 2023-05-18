@@ -5,7 +5,7 @@ $RetentionTotal = 365
 function RetentionSetAllCustomers{
 #Creates a array with all of the subscriptions. The output parameter is added to the command in order to remove the quotation marks. 
 $Subscriptions = @(az account list --query '[].id' --output tsv)
-
+$Fail = @()
 #Ensures that this is run against every subscription that we can reach. 
     foreach ($Subscription in $Subscriptions){
     Start-Job{
@@ -16,30 +16,40 @@ $Subscriptions = @(az account list --query '[].id' --output tsv)
     Write-Output $Perms
     
     #the following below is added in to make sure that we only attempt to run the commands on subs where we are able to.
-    if($Perms -like "*Log*"){
+    if($Perms -eq "Log Analytics Contributor"){
 
         $ResourceGroups = az group list --query '[].name' --output table | Select-String 'AzureSentinel'
         $WorkspaceNames = az monitor log-analytics workspace list --query '[].name' --output table | Select-String 'AzureSentinel'
         #Collects the necessary table names. This specifically queries only the names of the tables & ensures that we don't return any additional formatting just raw strings.
         $tables = @(az monitor log-analytics workspace table list --resource-group $ResourceGroups --workspace-name $WorkspaceNames --query '[].name' --output table)
-        Write-Output $tables
 
         #the following will actually work through every table in the list to modify the retention that is set to meet our standards.
-        foreach($table in $tables){
-        Write-Output "For Loop hit"
-        az monitor log-analytics workspace table update --resource-group $ResourceGroups --workspace-name $WorkspaceNames --name $table --retention-time $RetentionDays --total-retention-time $RetentionTotal
-        Write-Output "Table reten updated"
+        #foreach($table in $tables){
+        #Write-Output "For Loop hit"
+        #az monitor log-analytics workspace table update --resource-group $ResourceGroups --workspace-name $WorkspaceNames --name $table --retention-time $RetentionDays --total-retention-time $RetentionTotal
+        #Write-Output "Table reten updated"
+        #}
+
+        #The above lines have been commented to out to see if the foreach object cmdlet has better performance.
+        $tables | ForEach-Object -Parallel{
+            #Sets the table that we want to run the command against
+            $item = $_
+            az monitor log-analytics workspace table update --resouce-group $ResourceGroups --workspace-name $WorkspaceNames --name $item --retention-time $RetentionDays --total-retention-time $RetentionTotal
         }
     }
-
     #The following else statement is hit when none of the necessary permissions are in place for the change to be made.
     else{
-        Write-Output "else statement hit"
+        Write-Output "The Subscription: $Subscription does not contain the appropriate roles to modify the tables. Please review with the customer. "
+        #We will add the failed subscription IDs to a array which we will convert to csv format to then export.
+        $Fail += $Subscription
         continue
         }
 
         } -Name $Subscription   
     }
+    #After the for loop has completed we will now convert our array to a different data type. 
+   $Fail | ConvertTo-Csv -NoTypeInformation | Set-Content -Path /Failed/SubscriptionsFailed.csv
+
 }
 
 function RetentionSpecificCust{
