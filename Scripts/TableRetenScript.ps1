@@ -1,27 +1,29 @@
 $RetentionDays = 90
 $RetentionTotal = 365
+$patern = '\d{5}AzureSentinel'
 
 ## The below function is used in order to set the retention for all of our tables to the standard 1 year setting. 
 function RetentionSetAllCustomers{
 #Creates a array with all of the subscriptions. The output parameter is added to the command in order to remove the quotation marks. 
-$Subscriptions = @(az account list --query '[].id' --output tsv)
+$Subscriptions = @(Get-AzSubscription | Select-Object -ExpandProperty Id)
 $Fail = @()
-#Ensures that this is run against every subscription that we can reach. 
-    foreach ($Subscription in $Subscriptions){
-    Start-Job{
+
+#This change to ForEach-Object was made so that it can run against every single subscription in parallel at the sametime this still needs to be tested however 
+    ForEach-Object -Parallel {
+    $Subscriptions = $_
     #Collects our resource groups from each subscription and will associate itself with the resource group variable. 
-    az account set --subscription $Subscription
+    # The following line shouldn't be needed if we can run the powershell cmdlets by passing the sub. az account set --subscription $Subscription
+
     #queries our current subscription to ensure that we have the necessary role to make the table updates. 
-    $Perms = az role assignment list --query '[].roleDefinitionName' --output table | Select-String -Pattern "Log Analytics Contributor"
-    Write-Output $Perms
+    $roleAssignments = Get-AzRoleAssignment | Where-Object {$_.RoleDefinitionName -eq 'Log Analytics Contributor' } | Select-Object -ExpandProperty RoleDefinitionName    Write-Output $Perms
     
     #the following below is added in to make sure that we only attempt to run the commands on subs where we are able to.
-    if($Perms -eq "Log Analytics Contributor"){
+    if($roleAssignments -eq "Log Analytics Contributor"){
 
-        $ResourceGroups = az group list --query '[].name' --output table | Select-String 'AzureSentinel'
-        $WorkspaceNames = az monitor log-analytics workspace list --query '[].name' --output table | Select-String 'AzureSentinel'
+        $ResourceGroup = Get-AzResourceGroup | Where-Object {$_.ResourceGroupName -match $patern } | Select-Object -ExpandProperty ResourceGroupName
+        $WorkspaceName = Get-AzOperationalInsightsWorkspace | Where-Object {$_.Name -match $patern } | Select-Object -ExpandProperty Name
         #Collects the necessary table names. This specifically queries only the names of the tables & ensures that we don't return any additional formatting just raw strings.
-        $tables = @(az monitor log-analytics workspace table list --resource-group $ResourceGroups --workspace-name $WorkspaceNames --query '[].name' --output table)
+        $tables = @(Get-AzOperationalInsightsTable -ResourceGroup testpoc -WorkspaceName TestPOC | Select-Object -ExpandProperty Name)
 
         #the following will actually work through every table in the list to modify the retention that is set to meet our standards.
         #foreach($table in $tables){
@@ -31,10 +33,8 @@ $Fail = @()
         #}
 
         #The above lines have been commented to out to see if the foreach object cmdlet has better performance.
-        $tables | ForEach-Object -Parallel{
-            #Sets the table that we want to run the command against
-            $item = $_
-            az monitor log-analytics workspace table update --resouce-group $ResourceGroups --workspace-name $WorkspaceNames --name $item --retention-time $RetentionDays --total-retention-time $RetentionTotal
+        foreach($table in $tables){
+            Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $table -RetentionInDays $RetentionDays -TotalRetentionInDays $RetentionTotal
         }
     }
     #The following else statement is hit when none of the necessary permissions are in place for the change to be made.
@@ -45,12 +45,10 @@ $Fail = @()
         continue
         }
 
-        } -Name $Subscription   
+        } -TimeoutSeconds 120 -AsJob 
     }
     #After the for loop has completed we will now convert our array to a different data type. 
    $Fail | ConvertTo-Csv -NoTypeInformation | Set-Content -Path /Failed/SubscriptionsFailed.csv
-
-}
 
 function RetentionSpecificCust{
     az account list --output table 
