@@ -43,5 +43,23 @@ if($CustId -match $pattern){
 
 #Creating the necessary policies
 $Subscription = (Get-AzContext).Subscription.Id
+$ResourceGroup = Get-AzResourceGroup | Select-String -Pattern $pattern
+$ResourceId = Get-AzOperationalInsightsWorkspace | Select-String $pattern
 
-Set-AzPolicyAssignment -Name 'Configure Log Analytics extension on Azure Arc enabled Windows servers' -Scope $Subscription -EnforcementMode
+$PolicyParam = @{
+    "logAnalytics" = $ResourceId
+}
+
+#Grabs our policy Definition for use in the next step. 
+$Definition = Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Windows servers' }
+$Definition = Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Windows servers' } | Select-Object DisplayName
+
+#begin creation of our new policy
+$DeployWinPolicy = New-AzPolicyAssignment -PolicyDefinition $Definition -PolicyParameter $PolicyParam -Name WindowsOmsInstaller -AssignIdentity -IdentityType SystemAssigned
+
+#Now we need to fetch the policy -Id of the above. 
+
+$NewPolicy = Get-AzPolicyDefinition -Name WindowsOmsInstaller
+$NewPolicyId = $NewPolicy.PolicyDefinitionId
+
+Start-AzPolicyRemediation -PolicyAssignmentId $NewPolicyId 
