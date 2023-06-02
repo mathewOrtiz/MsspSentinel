@@ -1,7 +1,10 @@
+#Global Variable initialized
+$pattern = "^\d{5}AzureSentinel$"
+
+function ResourceProviders{
 #The below needs to be populated With the necessary namespaces as well as creating a array with the required resource providers.
 $ResourceProivder = @(Get-AzResourceProvider -ProviderNamespace)
 $RequiredProviders =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights')
-$pattern = "^\d{5}AzureSentinel$"
 #Need to add here the fetching of the necessary files.
 
 #Check to see if we need to register additional resource providers before running our ARM template.
@@ -21,7 +24,7 @@ if($NecessaryProviders -eq $false){
         Register-AzResourceProvider -ProviderNamespace $RequiredProvider
     }
 }
-
+}
 
 function DeploySentinel{
 #Once the above has completed we have ensured that the necessary providers for the rest of our task have been completed
@@ -48,7 +51,7 @@ $TemplateParameters =@{
     dataRetention = 90
 }
 
-New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $TemplateParameters -ResourceGroupName $CustName -AsJ[PSCustomObject]@{
+New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $TemplateParameters -ResourceGroupName $CustName -AsJob[PSCustomObject]@{
     Name = SentinelResourceDeploy
 }
 
@@ -56,8 +59,8 @@ New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $Template
 }
 function PolicyCreation{
 #Creating the necessary policies
-$Subscription = (Get-AzContext).Subscription.Id
-$ResourceGroup = Get-AzResourceGroup | Select-String -Pattern $pattern
+#$Subscription = (Get-AzContext).Subscription.Id
+#$ResourceGroup = Get-AzResourceGroup | Select-String -Pattern $pattern
 $WorkspaceName = Get-AzOperationalInsightsWorkspace | Select-String $pattern
 
 $PolicyParam = @{
@@ -70,11 +73,11 @@ $DefinitionWin = Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayNa
 $DefinitionLinux = Get-AzPolicyDefinition | Where-Object {$_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Linux servers.'}
 
 #begin creation of our new policy
+
+#need to see if the variables being assigned here is really necessary. 
 $DeployWinPolicy = New-AzPolicyAssignment -PolicyDefinition $DefinitionWin -PolicyParameterObject $PolicyParam -Name WindowsOmsInstaller -AssignIdentity -IdentityType SystemAssigned
 $DeployLinuxPolicy = New-AzPolicyAssignment -PolicyDefinition $DefinitionLinux -PolicyParameterObject $PolicyParam -Name LinuxOMsInstaller -AssignIdentity -IdentityType SystemAssigned
 #Now we need to fetch the policy -Id of the above. 
-
-$NewPolicyId = Get-AzPolicyDefinition -nam
 
 Start-AzPolicyRemediation -PolicyAssignmentId $DefinitionWin.PolicyDefinitionId -Name WindowsOmsRemediation
 Start-AzPolicyRemediation -PolicyAssignmentId $DefinitionLinux.PolicyDefinitionId -Name LinuxOmsRemediation
@@ -102,7 +105,8 @@ $SentinelDeployStatus = (Get-Job -Name SentinelResourceDeploy).State
 if($SentinelDeployStatus -eq "Running"){
 Wait-Job -Name SentinelResourceDeploy
 
-Write-Output "The Sentinel Resources are still being deployed please wait for this to be completed."
+Write-Output "The Sentinel Resources are still being deployed please wait for this to be completed."\
+#The below will re-run the sentinel deploy script in order to ensure that the necessary resources are created to be modified. 
 }elseif($SentinelDeployStatus -eq "Failed"){
 DeploySentinel
 
@@ -114,4 +118,89 @@ Write-Output "The initial deployment of the Sentinel Resource has failed please 
 }
 
 $tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ })
+}
+
+function DataConnectors{
+    [CmdletBinding()]
+    param (
+        [Parameter(DontShow)]
+        [string]
+        $ResourceGroup = (Get-AzResourceGroup | Select-String),
+
+        [Parameter(DontShow)]
+        [string]
+        $WorkspaceName = (Get-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName),
+
+        [Parameter(DontShow)]
+        [array]
+        $WinLogSources = @('System','Application'),
+
+        [Parameter(DontShow)]
+        [array]
+        $LinuxLogSources = @('Auth','authpriv','syslog','cron'),
+
+
+        #Defines our parameters for our arm temaple
+        [Parameter(DontShow)]
+        [hastable]
+        $ParametersForTemplate = @{
+            workspaceName =@{
+                type = 'string'
+                defaultvalue = $WorkspaceName
+            }
+            dataSourceName = @{
+                type = 'string'
+                defaultvalue = 'SecurityInsightsSecurityEventCollectionConfiguration'
+            }
+        },
+        
+        #Defines our resources for our Arm template
+        [Parameter(DontShow)]
+        [hastable]
+        $ResoucesTemplate = @(
+            @{
+                "type" = "Microsoft.OperationalInsights/workspaces/dataSources"
+                "apiVersion" = "2020-08-01"
+                "name" = "[concat(parameters('workspaceName'), '/', parameters('dataSourceName'))]"
+                "kind" = 'dataSourceName'
+                    "properties" = @{
+                        "tier" = 'Recommended'
+                    }
+            }
+        ),
+
+        #Define the ARM template
+        [Parameter(DontShow)]
+        [hastable]
+        $Template = @{
+            '$schema' = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
+            contentVersion = '1.0.0.0'
+            parameters = $ParametersForTemplate
+            resource = $ResoucesTemplate
+        }
+        
+  )
+    
+    #Creates our necessary log sources for the Oms agent log collection. This will need to be updated if we add in a new method for the ARC agent. 
+    $WinLogSources.ForEach({New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -EventLogName $WinLogSources})
+    $LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -EventLogName $LinuxLogSources})
+
+#Deploy the Bicep Template
+
+#Convert the defined template to proper JSON 
+New-Item -ItemType Directory /home/WorkingDir
+
+$TemplateToJson = Convert-ToJson $Template -Depth 100
+
+$TemplateToJson | Out-File /home/workingDir/WindowsLogging.json
+
+New-AzResourceGroupDeployment -TemplateFile WindowsLogging.json -Name WinLog
+
+Wait-Job -Name WinLog
+}
+
+
+#This function will need to be configured in order to get us our output that will 
+function VerifyDeploymentStatus {
+    
 }
