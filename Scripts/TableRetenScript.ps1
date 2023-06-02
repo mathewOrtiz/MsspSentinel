@@ -78,9 +78,8 @@ function RetentionSpecificCust{
     "
     if ($RetenType = 1 ){
         $tables = @(az monitor log-analytics workspace table list --resource-group $ResourceGroups --workspace-name $WorkspaceName --query '[].name' --output table )
-        foreach ($table in $tables){
-            az monitor log-analytics workspace table update --resource-group $ResourceGroups --workspace-name $WorkspaceName --name $table --retention-time $RetentionDays --total-retention-time $RetentionTotal
-        }
+        $tables.ForEach({
+            az monitor log-analytics workspace table update --resource-group $ResourceGroups --workspace-name $WorkspaceName --name $table --retention-time $RetentionDays --total-retention-time $RetentionTotal})
     }
         elseif ($RetenType = 2 ){
         $TableName = Read-Host "Please enter the name of the table that you would like to edit. "
