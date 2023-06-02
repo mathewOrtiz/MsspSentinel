@@ -23,7 +23,7 @@ $Fail = @()
         $ResourceGroup = Get-AzResourceGroup | Where-Object {$_.ResourceGroupName -match $patern } | Select-Object -ExpandProperty ResourceGroupName
         $WorkspaceName = Get-AzOperationalInsightsWorkspace | Where-Object {$_.Name -match $patern } | Select-Object -ExpandProperty Name
         #Collects the necessary table names. This specifically queries only the names of the tables & ensures that we don't return any additional formatting just raw strings.
-        $tables = @(Get-AzOperationalInsightsTable -ResourceGroup testpoc -WorkspaceName TestPOC | Select-Object -ExpandProperty Name)
+        $tables = @((Get-AzOperationalInsightsTable -ResourceGroup testpoc -WorkspaceName TestPOC)).Name
 
         #the following will actually work through every table in the list to modify the retention that is set to meet our standards.
         #foreach($table in $tables){
@@ -32,10 +32,10 @@ $Fail = @()
         #Write-Output "Table reten updated"
         #}
 
-        #The above lines have been commented to out to see if the foreach object cmdlet has better performance.
-        foreach($table in $tables){
-            Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $table -RetentionInDays $RetentionDays -TotalRetentionInDays $RetentionTotal
-        }
+
+        #The following has been modified to use the foreach method as it has better compute performance inline. Will need to compare to the parrallel task as well.
+        $tables.foreach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $table -RetentionInDays $RetentionDays -TotalRetentionInDays $RetentionTotal})
+
     }
     #The following else statement is hit when none of the necessary permissions are in place for the change to be made.
     else{
