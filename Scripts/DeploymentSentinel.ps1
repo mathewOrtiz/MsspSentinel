@@ -48,7 +48,9 @@ $TemplateParameters =@{
     dataRetention = 90
 }
 
-$SentinelResources = New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $TemplateParameters -ResourceGroupName $CustName
+New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $TemplateParameters -ResourceGroupName $CustName -AsJ[PSCustomObject]@{
+    Name = SentinelResourceDeploy
+}
 
 #We have now deployed the LogAnalytics Workspace & Sentinel Instance
 }
@@ -64,15 +66,52 @@ $PolicyParam = @{
 
 
 #Grabs our policy Definition for use in the next step. 
-$Definition = Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Windows servers' }
+$DefinitionWin = Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Windows servers' }
+$DefinitionLinux = Get-AzPolicyDefinition | Where-Object {$_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Linux servers.'}
 
 #begin creation of our new policy
-$DeployWinPolicy = New-AzPolicyAssignment -PolicyDefinition $Definition -PolicyParameter $PolicyParam -Name WindowsOmsInstaller -AssignIdentity -IdentityType SystemAssigned
-$DeployLinuxPolicy
+$DeployWinPolicy = New-AzPolicyAssignment -PolicyDefinition $DefinitionWin -PolicyParameterObject $PolicyParam -Name WindowsOmsInstaller -AssignIdentity -IdentityType SystemAssigned
+$DeployLinuxPolicy = New-AzPolicyAssignment -PolicyDefinition $DefinitionLinux -PolicyParameterObject $PolicyParam -Name LinuxOMsInstaller -AssignIdentity -IdentityType SystemAssigned
 #Now we need to fetch the policy -Id of the above. 
 
-$NewPolicy = Get-AzPolicyDefinition -Name WindowsOmsInstaller
-$NewPolicyId = $NewPolicy.PolicyDefinitionId
+$NewPolicyId = Get-AzPolicyDefinition -nam
 
-Start-AzPolicyRemediation -PolicyAssignmentId $NewPolicyId 
+Start-AzPolicyRemediation -PolicyAssignmentId $DefinitionWin.PolicyDefinitionId -Name WindowsOmsRemediation
+Start-AzPolicyRemediation -PolicyAssignmentId $DefinitionLinux.PolicyDefinitionId -Name LinuxOmsRemediation
+}
+
+#Sets our Table Retention 
+function RetentionSet{
+    [CmdletBinding()]
+    param (
+        [Parameter(DontShow)]
+        [String]
+        $WorkspaceName = (Get-AzOperationalInsightsWorkspace | Select-String $pattern),
+
+        [Parameter( DontShow)]
+        [String]
+        $ResourceGroup = (Get-AzResourceGroup | Select-String -Pattern $pattern),
+
+        [Parameter(DontShow)]
+        [array]
+        $tables = @((Get-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName))
+    )
+#Before beginning iteration through the table we query to ensure that our Job has been completed to deploy our Sentinel resources. If this hasn't been completed then we wait for it to finish.
+$SentinelDeployStatus = (Get-Job -Name SentinelResourceDeploy).State
+
+if($SentinelDeployStatus -eq "Running"){
+Wait-Job -Name SentinelResourceDeploy
+
+Write-Output "The Sentinel Resources are still being deployed please wait for this to be completed."
+}elseif($SentinelDeployStatus -eq "Failed"){
+DeploySentinel
+
+Wait-Job -Name SentinelResourceDeploy
+
+Write-Output "The initial deployment of the Sentinel Resource has failed please wait while this is attempted again."
+}else {
+    $tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ })
+}
+
+$tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ })
 }
