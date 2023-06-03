@@ -223,10 +223,26 @@ function DeployAnalyticalRules {
 
         [Parameter(DontShow)]
         [array]
-        $AnalyticalRules = ((Get-AzStorageBlob -Context $StorageAccAuth).Name)
+        $AnalyticalRules = ((Get-AzStorageBlob -Context $StorageAccAuth).Name),
+
+        [Parameter(DontShow)]
+        [String]
+        $ResourceGroup = ((Get-AzResourceGroup).Name -match $pattern),
+
+        [Parameter(DontShow)]
+        [Hashtable]
+        $TemplateParams = @{
+            workspace = Get-AzOperationalInsightsWorkspace -match $pattern
+        }
 
     )
     #Need to in this step iterate over the array that we created while also deploying ARM templates. Need to ensure that this is done in the correct manner.
 
-    #Need to look at the creation method through the Sentinel REST API to see how the JSON payload is being formulated. Replicate this in dynamically created arm templates and deploy those.
+    #Can use the raw JSON files in order to deploy the analytical rules the params that are needed are the workspace & potentially the region.
+
+    $AnalyticalRules.ForEach({New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroup -TemplateFile $_ -TemplateParameterObject $TemplateParams -Name $_ -AsJob
+        Write-Output 'The Analytical Rule Set for $_ Is being deployed once this has completed the next one will deploy'
+    Wait-Job -Name $_
+    })
+
 }
