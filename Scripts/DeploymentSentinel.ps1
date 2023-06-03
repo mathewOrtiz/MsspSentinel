@@ -200,7 +200,33 @@ Wait-Job -Name WinLog
 }
 
 
+
+
 #This function will need to be configured in order to get us our output that will 
-function VerifyDeploymentStatus {
-    
+function DeployAnalyticalRules {
+    #We create the storage context which will use our Azure AD credentials to authenticate to the Blob in order to auth to our files
+    [CmdletBinding()]
+    param (
+
+    #In the below parameters need to ensure that we add a pattern matching feature. This will ensure that we aren't relying on the users input.
+        [Parameter(DontShow)]
+        [hashtable]
+        $StorageAccAuth = (New-AzStorageAccountContext -StorageAccountName $StorageAccount ),
+
+        [Parameter(DontShow)]
+        [String]
+        $StorageAccount = ((Get-AzStorageAccount).StorageAccountName),
+
+        [Parameter(DontShow)]
+        [String]
+        $ContainerName = ((Get-AzStorageContainer -Context $StorageAccAuth).Name),
+
+        [Parameter(DontShow)]
+        [array]
+        $AnalyticalRules = ((Get-AzStorageBlob -Context $StorageAccAuth).Name)
+
+    )
+    #Need to in this step iterate over the array that we created while also deploying ARM templates. Need to ensure that this is done in the correct manner.
+
+    #Need to look at the creation method through the Sentinel REST API to see how the JSON payload is being formulated. Replicate this in dynamically created arm templates and deploy those.
 }
