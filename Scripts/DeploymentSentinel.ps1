@@ -200,7 +200,49 @@ Wait-Job -Name WinLog
 }
 
 
+
+
 #This function will need to be configured in order to get us our output that will 
-function VerifyDeploymentStatus {
-    
+function DeployAnalyticalRules {
+    #We create the storage context which will use our Azure AD credentials to authenticate to the Blob in order to auth to our files
+    [CmdletBinding()]
+    param (
+
+    #In the below parameters need to ensure that we add a pattern matching feature. This will ensure that we aren't relying on the users input.
+        [Parameter(DontShow)]
+        [hashtable]
+        $StorageAccAuth = (New-AzStorageAccountContext -StorageAccountName $StorageAccount ),
+
+        [Parameter(DontShow)]
+        [String]
+        $StorageAccount = ((Get-AzStorageAccount).StorageAccountName),
+
+        [Parameter(DontShow)]
+        [String]
+        $ContainerName = ((Get-AzStorageContainer -Context $StorageAccAuth).Name),
+
+        [Parameter(DontShow)]
+        [array]
+        $AnalyticalRules = ((Get-AzStorageBlob -Context $StorageAccAuth).Name),
+
+        [Parameter(DontShow)]
+        [String]
+        $ResourceGroup = ((Get-AzResourceGroup).Name -match $pattern),
+
+        [Parameter(DontShow)]
+        [Hashtable]
+        $TemplateParams = @{
+            workspace = Get-AzOperationalInsightsWorkspace -match $pattern
+        }
+
+    )
+    #Need to in this step iterate over the array that we created while also deploying ARM templates. Need to ensure that this is done in the correct manner.
+
+    #Can use the raw JSON files in order to deploy the analytical rules the params that are needed are the workspace & potentially the region.
+
+    $AnalyticalRules.ForEach({New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroup -TemplateFile $_ -TemplateParameterObject $TemplateParams -Name $_ -AsJob
+        Write-Output 'The Analytical Rule Set for $_ Is being deployed once this has completed the next one will deploy'
+    Wait-Job -Name $_
+    })
+
 }
