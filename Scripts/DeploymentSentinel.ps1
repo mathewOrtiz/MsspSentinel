@@ -1,5 +1,14 @@
 #Global Variable initialized
 $pattern = "^\d{5}AzureSentinel$"
+$FIlePath = New-Item -ItemType Directory /home/WorkingDir
+$AzSubscription = (Get-Azcontext).Name.Id
+$SentinelSecurityContrib = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Contributor').Id
+$ArcConnected = (Get-AzRoleDefinition -Name 'Azure Connected Machine Resource Administrator')
+$MonitoringContrib = (Get-AzRoleDefinition -Name 'Monitoring Contributor').Id
+$ResourcePolicyContrib = (Get-AzRoleDefinition -Name 'Resource Policy Contributor').Id
+$ManagedIdContrib = (Get-AzRoleDefinition -Name 'Managed Identity Contributor').Id
+$VirtualMachineContrib = (Get-AzRoleDefinition -Name 'Classic Virtual Machine Contributor').Id
+$TagContrib = (Get-AzRoleDefinition -Name 'Tag Contributor').Id
 
 function ResourceProviders{
 #The below needs to be populated With the necessary namespaces as well as creating a array with the required resource providers.
@@ -26,6 +35,63 @@ if($NecessaryProviders -eq $false){
 }
 }
 
+function LightHouseConnection{
+    #Creates our hashtable to utilize for the parameters for the JSON file.
+    [CmdletBinding()]
+    param (
+
+        [Parameter(Mandatory=$true, HelpMessage="Enter the tenant ID of the tenant that will manage the subscription." )]
+        [string]
+        $TenantId,
+
+        [Parameter(Mandatory=$true, HelpMessage="Enter the Object ID for the group")]
+        [string]
+        $PrincipalId,
+
+        [Parameter(DontShow)]
+        [PSCustomObject]
+            $ParameterObject = [Ordered]@{
+            MspOfferName = "test"
+            MspOfferDescription = "test"
+            managedByTenantId = $TenantId
+            authorizations = @(
+                    @{
+                    "principalId" = $PrincipalId
+                    "roleDefinitionId" = $SentinelSecurityContrib
+                    "principalIdDisplayName" = "Security Engineering"
+                    },
+                    @{
+                    "principalId" = $PrincipalId
+                    "roleDefinitionId" = $ArcConnected
+                    "principalIdDisplayName" = "Security Engineering" 
+                    },
+                    @{
+                    "principalId" = $PrincipalId
+                    "roleDefinitionId" = $MonitoringContrib
+                    "principalIdDisplayName" = "Security Engineering"
+                    },
+                    @{
+                    "principalId" = $PrincipalId
+                    "roleDefinitionId" = $TagContrib
+                    "principalIdDisplayName" = "Security Engineering"
+                    },
+                    @{
+                    "principalId" = $PrincipalId
+                    "roleDefinitionId" = $VirtualMachineContrib
+                    "principalIdDisplayName" = "Security Engineering"
+    
+                    }
+                )
+            }
+    )
+     
+    Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json
+    
+    New-AzResourceGroupDeployment -TemplateFile ArmTemplateDeploy.json -TemplateParameterObject
+
+    New-AzResourceGroupDeployment -TemplateParameterUri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -TemplateParameterObject $ParameterObject
+    }
+
 function DeploySentinel{
 #Once the above has completed we have ensured that the necessary providers for the rest of our task have been completed
 
@@ -40,16 +106,17 @@ param (
     [Parameter(Mandatory=$true, HelpMessage="Please enter the location that is closet to this customer. Using the foramt eastus,westus etc")]
     [ValidatePattern('^([a-z]{2}-[a-z]{2}-\d{1})$')]
     [string]
-    $location
-)
+    $location,
 
-#Initialize the Parameters to be used in our deployment
-$TemplateParameters =@{
+    [Parameter(DontShow)]
+    [hashtable]
+    $TemplateParameters =@{
     workspaceName = $CustName
     location = $location
     sku = PerGB2018
     dataRetention = 90
 }
+)
 
 New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $TemplateParameters -ResourceGroupName $CustName -AsJob[PSCustomObject]@{
     Name = SentinelResourceDeploy
@@ -188,7 +255,7 @@ function DataConnectors{
 #Deploy the Bicep Template
 
 #Convert the defined template to proper JSON 
-New-Item -ItemType Directory /home/WorkingDir
+
 
 $TemplateToJson = Convert-ToJson $Template -Depth 100
 
@@ -199,7 +266,7 @@ New-AzResourceGroupDeployment -TemplateFile WindowsLogging.json -Name WinLog
 Wait-Job -Name WinLog
 }
 
-
+New-AzResourceGroupDeployment -TemplateFile -TemplateParameterObject 
 
 
 #This function will need to be configured in order to get us our output that will 
