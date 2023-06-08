@@ -3,7 +3,7 @@ $pattern = "^\d{5}AzureSentinel$"
 $FIlePath = New-Item -ItemType Directory /home/WorkingDir
 $AzSubscription = (Get-Azcontext).Name.Id
 $SentinelSecurityContrib = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Contributor').Id
-$ArcConnected = (Get-AzRoleDefinition -Name 'Azure Connected Machine Resource Administrator')
+$ArcConnected = (Get-AzRoleDefinition -Name 'Azure Connected Machine Resource Administrator').Id
 $MonitoringContrib = (Get-AzRoleDefinition -Name 'Monitoring Contributor').Id
 $ResourcePolicyContrib = (Get-AzRoleDefinition -Name 'Resource Policy Contributor').Id
 $ManagedIdContrib = (Get-AzRoleDefinition -Name 'Managed Identity Contributor').Id
@@ -36,61 +36,61 @@ if($NecessaryProviders -eq $false){
 }
 
 function LightHouseConnection{
-    #Creates our hashtable to utilize for the parameters for the JSON file.
-    [CmdletBinding()]
-    param (
 
-        [Parameter(Mandatory=$true, HelpMessage="Enter the tenant ID of the tenant that will manage the subscription." )]
-        [string]
-        $TenantId,
-
-        [Parameter(Mandatory=$true, HelpMessage="Enter the Object ID for the group")]
-        [string]
-        $PrincipalId,
-
-        [Parameter(DontShow)]
-        [PSCustomObject]
-            $ParameterObject = [Ordered]@{
-            MspOfferName = "test"
-            MspOfferDescription = "test"
-            managedByTenantId = $TenantId
-            authorizations = @(
-                    @{
-                    "principalId" = $PrincipalId
-                    "roleDefinitionId" = $SentinelSecurityContrib
-                    "principalIdDisplayName" = "Security Engineering"
-                    },
-                    @{
-                    "principalId" = $PrincipalId
-                    "roleDefinitionId" = $ArcConnected
-                    "principalIdDisplayName" = "Security Engineering" 
-                    },
-                    @{
-                    "principalId" = $PrincipalId
-                    "roleDefinitionId" = $MonitoringContrib
-                    "principalIdDisplayName" = "Security Engineering"
-                    },
-                    @{
-                    "principalId" = $PrincipalId
-                    "roleDefinitionId" = $TagContrib
-                    "principalIdDisplayName" = "Security Engineering"
-                    },
-                    @{
-                    "principalId" = $PrincipalId
-                    "roleDefinitionId" = $VirtualMachineContrib
-                    "principalIdDisplayName" = "Security Engineering"
-    
-                    }
-                )
-            }
-    )
-     
-    Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json
-    
-    New-AzResourceGroupDeployment -TemplateFile ArmTemplateDeploy.json -TemplateParameterObject
-
-    New-AzResourceGroupDeployment -TemplateParameterUri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -TemplateParameterObject $ParameterObject
+$PrincipalId = Read-Host "Enter the Principal ID that will be used in this configuration"
+$TenantId = Read-Host "Enter the Tenant ID for the home tenant"
+#Creates our hashtable to utilize for the parameters for the JSON file.
+$parameters = [ordered]@{
+    mspOfferName = @{
+        value = "Ntirety Lighthouse SOC"
     }
+    managedByTenantId = @{
+        value = $TenatId
+    }
+    authorizations =@{
+        value =@(
+            @{
+                principalId = $PrincipalId
+                roleDefinitionId = $SentinelSecurityContrib
+                principalIdDisplayName = "Security Engineer"
+            }
+            @{
+                principalId = $PrincipalId
+                roleDefinitionId = $ArcConnected
+                principalIdDisplayName = "Security Engineer"
+            }
+            @{
+                principalId = $PrincipalId
+                roleDefinitionId = $MonitoringContrib
+                principalIdDisplayName = "Security Engineer"
+            }
+            @{
+                principalId = $PrincipalId
+                roleDefinitionId = $TagContrib
+                principalIdDisplayName = "Security Engineer"
+            }
+            @{
+                principalId = $PrincipalId
+                roleDefinitionId = $VirtualMachineContrib
+                principalIdDisplayName = "Security Engineer"
+            }
+        )
+    }
+}
+#Define the resources for the parameter file using a hashtable. 
+$MainObject = [ordered]@{
+    '$schema' = "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#"
+    contentVersion = "1.0.0.0"
+    parameters = $parameters
+}
+
+#Convert the above into a single JSON file that will work for the parameter file
+$MainObject | ConvertTo-Json -Depth 5 | Out-File TemplateParam.json
+
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -OutFile ArmTemaplateDeploy.json
+    
+New-AzDeployment -TemplateFile ArmTemplateDeploy.json -TemplateParameterFile TemplateParam.json
+}
 
 function DeploySentinel{
 #Once the above has completed we have ensured that the necessary providers for the rest of our task have been completed
