@@ -10,6 +10,9 @@ $ManagedIdContrib = (Get-AzRoleDefinition -Name 'Managed Identity Contributor').
 $VirtualMachineContrib = (Get-AzRoleDefinition -Name 'Classic Virtual Machine Contributor').Id
 $TagContrib = (Get-AzRoleDefinition -Name 'Tag Contributor').Id
 
+$NewInstance = Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for. "
+
+Set-AzContext -Tenant $NewInstance
 function ResourceProviders{
 #The below needs to be populated With the necessary namespaces as well as creating a array with the required resource providers.
 $ResourceProivder = @(Get-AzResourceProvider -ProviderNamespace)
