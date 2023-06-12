@@ -9,6 +9,7 @@ $ManagedIdContrib = (Get-AzRoleDefinition -Name 'Managed Identity Contributor').
 $VirtualMachineContrib = (Get-AzRoleDefinition -Name 'Classic Virtual Machine Contributor').Id
 $TagContrib = (Get-AzRoleDefinition -Name 'Tag Contributor').Id
 $DisplayNameEng = "Security Engineer"
+$StorageAccountName = Read-Host "Enter the name of the storage account containing the analytical rules."
 
 #Sets the context for our script to run in. This is important as it will allow the user to remotely authenti
 $NewInstance = Read-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for. "
@@ -103,9 +104,9 @@ $MainObject = [ordered]@{
 }
 
 #Convert the above into a single JSON file that will work for the parameter file
-$MainObject | ConvertTo-Json -Depth 5 | Out-File -FilePath /$FilePath/TemplateParam.json
+$MainObject | ConvertTo-Json -Depth 5 | Out-File -FilePath $FilePath/TemplateParam.json
 
-Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -OutFile ArmTemaplateDeploy.json
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -OutFile -FilePath $FilePath/ArmTemaplateDeploy.json
     
 New-AzDeployment -TemplateFile $FilePath/ArmTemplateDeploy.json -TemplateParameterFile $FilePath/TemplateParam.json
 
@@ -300,7 +301,7 @@ $LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -Resour
 #Creates the JSON template file from the above parameters we have set. 
 $TemplateToJson = Convert-ToJson $Template -Depth 100
 
-$TemplateToJson | Out-File /$FilePath/WindowsLogging.json
+$TemplateToJson | Out-File $FilePath/WindowsLogging.json
 
 New-AzResourceGroupDeployment -TemplateFile WindowsLogging.json -Name WinLog
 
@@ -324,11 +325,7 @@ function DeployAnalyticalRules {
     #In the below parameters need to ensure that we add a pattern matching feature. This will ensure that we aren't relying on the users input.
         [Parameter(DontShow)]
         [hashtable]
-        $StorageAccAuth = (New-AzStorageAccountContext -StorageAccountName $StorageAccount ),
-
-        [Parameter(DontShow)]
-        [String]
-        $StorageAccount = ((Get-AzStorageAccount).StorageAccountName),
+        $StorageAccAuth = (New-AzStorageContext -StorageAccountName $StorageAccountName),
 
         [Parameter(DontShow)]
         [String]
@@ -336,7 +333,7 @@ function DeployAnalyticalRules {
 
         [Parameter(DontShow)]
         [array]
-        $AnalyticalRules = ((Get-AzStorageBlob -Context $StorageAccAuth).Name),
+        $AnalyticalRules = @((Get-AzStorageBlob -Context $StorageAccAuth).Name),
 
         [Parameter(DontShow)]
         [String]
@@ -349,7 +346,9 @@ function DeployAnalyticalRules {
         }
 
     )
-    #Need to in this step iterate over the array that we created while also deploying ARM templates. Need to ensure that this is done in the correct manner.
+    #The following will need download all of the files to our working directory. 
+    $AnalyticalRules.foreach({Get-AzStorageBlobContent -Context -Blob $_ -Destination $FilePath})
+
 
     #Can use the raw JSON files in order to deploy the analytical rules the params that are needed are the workspace & potentially the region.
 
@@ -357,47 +356,6 @@ function DeployAnalyticalRules {
         Write-Output 'The Analytical Rule Set for $_ Is being deployed once this has completed the next one will deploy'
     Wait-Job -Name $_
     })
-
-}
-
-#Sets our Table Retention 
-function RetentionSet{
-    [CmdletBinding()]
-    param (
-        [Parameter(DontShow)]
-        [String]
-        $WorkspaceName = (Get-AzOperationalInsightsWorkspace | Select-String $pattern),
-
-        [Parameter( DontShow)]
-        [String]
-        $ResourceGroup = (Get-AzResourceGroup | Select-String -Pattern $pattern),
-
-        [Parameter(DontShow)]
-        [array]
-        $tables = @((Get-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName))
-    )
-#Before beginning iteration through the table we query to ensure that our Job has been completed to deploy our Sentinel resources. If this hasn't been completed then we wait for it to finish.
-$SentinelDeployStatus = (Get-Job -Name SentinelResourceDeploy).State
-
-if($SentinelDeployStatus -eq "Running"){
-Wait-Job -Name SentinelResourceDeploy
-
-Write-Output "The Sentinel Resources are still being deployed please wait for this to be completed."
-}elseif($SentinelDeployStatus -eq "Failed"){
-DeploySentinel
-
-Wait-Job -Name SentinelResourceDeploy
-
-Write-Output "The initial deployment of the Sentinel Resource has failed please wait while this is attempted again."
-}else {
-    $tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ })
-}
-
-$tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ })
-    if($error -ne $null){
-        $error.ForEach({$FunctionsToCheck["DeployAnalyticalRules"] += $_.Exception.Message})
-        $error.Clear()
-    }
 
 }
 
