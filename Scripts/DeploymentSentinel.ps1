@@ -50,7 +50,7 @@ $parameters = [ordered]@{
         value = "Ntirety Lighthouse SOC"
     }
     managedByTenantId = @{
-        value = $TenatId
+        value = $TenantId
     }
     authorizations =@{
         value =@(
