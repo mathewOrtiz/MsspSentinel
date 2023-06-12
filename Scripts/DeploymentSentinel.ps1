@@ -14,6 +14,7 @@ $DisplayNameEng = "Security Engineer"
 $NewInstance = Read-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for. "
 Set-AzContext -Tenant $NewInstance
 $AzSubscription = (Get-Azcontext).Name.Id
+wait 10
 Set-AzContext -Subscription $AzSubscription
 #Creating the static variables to use for housing errors for the error check portion of the scipt. 
 $FunctionsToCheck = @{}
@@ -310,7 +311,6 @@ if($error -ne $null){
 
 }
 
-New-AzResourceGroupDeployment -TemplateFile -TemplateParameterObject 
 
 
 #This function will need to be configured in order to get us our output that will 
