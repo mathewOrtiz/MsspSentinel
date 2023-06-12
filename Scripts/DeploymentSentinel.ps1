@@ -168,7 +168,7 @@ param (
 
     [Parameter(DontShow)]
     [hashtable]
-    $TemplateParameters =@{
+    $TemplateParameters = [ordered]@{
     workspaceName = $CustName
     location = $location
     sku = PerGB2018
@@ -177,18 +177,14 @@ param (
 )
 New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $TemplateParameters -ResourceGroupName $CustName -AsJob -JobName "SentinelDeploy"
 
+#Exist to catch errors associated with this run
 if($error[0]){
     $FunctionsToCheck["DeploySentinel"] = null
     $error.ForEach({$FunctionsToCheck["DeploySentinel"] += $_.Exception.Message})
-    
     $error.Clear()
-}
-#We have now deployed the LogAnalytics Workspace & Sentinel Instance
-   }
-
-#We have now deployed the LogAnalytics Workspace & Sentinel Instance
     }
 }
+
 function PolicyCreation{
 #Creating the necessary policies
 #$Subscription = (Get-AzContext).Subscription.Id
