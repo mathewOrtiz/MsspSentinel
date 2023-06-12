@@ -22,16 +22,18 @@ $FunctionsToCheck = @{}
 #Used to make sure we don't get any extraneous errors. 
 $error.Clear()
 function ResourceProviders{
-#The below needs to be populated With the necessary namespaces as well as creating a array with the required resource providers.
-$RequiredProviderCheck =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights','Microsoft.HybridConnectivity','Microsoft.ManagedIdentity','Microsoft.AzureArcData','Microsoft.OperationsManagement','microsoft.insights','Microsoft.HybridCompute','Microsoft.GuestConfiguration','Microsoft.Automanage','Microsoft.MarketplaceNotifications','Microsoft.ManagedServices')
-#Need to add here the fetching of the necessary files.
-
-#Checks whether or not the necessary namespace is Registered or not and then performs a register if necessary. 
-$RequiredProviderCheck.ForEach({($ProviderName = Get-AzResourceProvider -ProviderNamespace $_).RegistrationState | Select-Object -First 1
-if($ProviderName -match "NotRegistred"){
-Register-AzResourceProvider -ProviderNamespace $_
-}
-})
+    #The below needs to be populated With the necessary namespaces as well as creating a array with the required resource providers.
+    $RequiredProviderCheck =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights','Microsoft.HybridConnectivity','Microsoft.ManagedIdentity','Microsoft.AzureArcData','Microsoft.OperationsManagement','microsoft.insights','Microsoft.HybridCompute','Microsoft.GuestConfiguration','Microsoft.Automanage','Microsoft.MarketplaceNotifications','Microsoft.ManagedServices')
+    #Need to add here the fetching of the necessary files.
+    
+    foreach($Provider in $RequiredProviderCheck){
+        #$RequiredProviderCheck
+    
+        $ProviderName = (Get-AzResourceProvider -ProviderNamespace $Provider).RegistrationState | Select-Object -First 1
+        $ProviderName
+        if($ProviderName -match "NotRegistered"){
+        Register-AzResourceProvider -ProviderNamespace $Provider
+        }
 }
 
 #Catches any errors from this execution. 
