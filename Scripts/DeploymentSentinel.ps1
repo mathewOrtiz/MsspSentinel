@@ -13,30 +13,35 @@ $TagContrib = (Get-AzRoleDefinition -Name 'Tag Contributor').Id
 $NewInstance = Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for. "
 
 Set-AzContext -Tenant $NewInstance
+#Creating the static variables to use for housing errors for the error check portion of the scipt. 
+
+Set-AzContext -Subscription $AzSubscription
+$FunctionsToCheck = @{}
+
+#Used to make sure we don't get any extraneous errors. 
+$error.Clear()
 function ResourceProviders{
 #The below needs to be populated With the necessary namespaces as well as creating a array with the required resource providers.
-$ResourceProivder = @(Get-AzResourceProvider -ProviderNamespace)
-$RequiredProviders =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights')
+$RequiredProviderCheck =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights','Microsoft.HybridConnectivity')
 #Need to add here the fetching of the necessary files.
 
-#Check to see if we need to register additional resource providers before running our ARM template.
-$MissingProviders = @()
-
-$NecessaryProviders = $true
-#need to evaluate if calling the array through the in-built for method will be more efficient.
-foreach ($value in $RequiredProviders){
-    if (!($ResourceProivder -contains $value)){
-        $NecessaryProviders = $false
-        $MissingProviders += $MissingProviders
-    }
+#Checks whether or not the necessary namespace is Registered or not and then performs a register if necessary. 
+$RequiredProviderCheck.ForEach({($ProviderName = Get-AzResourceProvider -ProviderNamespace $_).RegistrationState | Select-Object -First 1
+if($ProviderName -contains "NotRegistred"){
+Register-AzResourceProvider -ProviderNamespace $_
+}
+})
 }
 
-if($NecessaryProviders -eq $false){
-    foreach ($MissingProvider in $MissingProviders){
-        Register-AzResourceProvider -ProviderNamespace $RequiredProvider
-    }
+#Catches any errors from this execution. 
+if($error[0]){
+    $error.ForEach({$FunctionsToCheck["ResourceProviders"] += $_.Exception.Message})
 }
-}
+$error.Clear()
+$NewInstance = Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for. "
+
+Set-AzContext -Tenant $NewInstance
+
 
 function LightHouseConnection{
 
@@ -88,11 +93,16 @@ $MainObject = [ordered]@{
 }
 
 #Convert the above into a single JSON file that will work for the parameter file
-$MainObject | ConvertTo-Json -Depth 5 | Out-File TemplateParam.json
+$MainObject | ConvertTo-Json -Depth 5 | Out-File -FilePath /$FIlePath/TemplateParam.json
 
 Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -OutFile ArmTemaplateDeploy.json
     
-New-AzDeployment -TemplateFile ArmTemplateDeploy.json -TemplateParameterFile TemplateParam.json
+New-AzDeployment -TemplateFile $FilePath/ArmTemplateDeploy.json -TemplateParameterFile $FilePath/TemplateParam.json
+
+if($error[0]){
+$error.foreach({$FunctionsToCheck["LightHouse"] += $_.Exception.Message})
+$error.Clear()
+}
 }
 
 function DeploySentinel{
@@ -122,10 +132,19 @@ param (
 )
 
 New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $TemplateParameters -ResourceGroupName $CustName -AsJob[PSCustomObject]@{
+New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $TemplateParameters -ResourceGroupName $CustName -AsJ[PSCustomObject]@{
     Name = SentinelResourceDeploy
 }
+if($error[0]){
+$FunctionsToCheck["DeploySentinel"] = null
+$error.ForEach({$FunctionsToCheck["DeploySentinel"] += $_.Exception.Message})
+
+$error.Clear()
+#We have now deployed the LogAnalytics Workspace & Sentinel Instance
+   }
 
 #We have now deployed the LogAnalytics Workspace & Sentinel Instance
+    }
 }
 function PolicyCreation{
 #Creating the necessary policies
@@ -145,12 +164,19 @@ $DefinitionLinux = Get-AzPolicyDefinition | Where-Object {$_.Properties.DisplayN
 #begin creation of our new policy
 
 #need to see if the variables being assigned here is really necessary. 
-$DeployWinPolicy = New-AzPolicyAssignment -PolicyDefinition $DefinitionWin -PolicyParameterObject $PolicyParam -Name WindowsOmsInstaller -AssignIdentity -IdentityType SystemAssigned
-$DeployLinuxPolicy = New-AzPolicyAssignment -PolicyDefinition $DefinitionLinux -PolicyParameterObject $PolicyParam -Name LinuxOMsInstaller -AssignIdentity -IdentityType SystemAssigned
+New-AzPolicyAssignment -PolicyDefinition $DefinitionWin -PolicyParameterObject $PolicyParam -Name WindowsOmsInstaller -AssignIdentity -IdentityType SystemAssigned
+New-AzPolicyAssignment -PolicyDefinition $DefinitionLinux -PolicyParameterObject $PolicyParam -Name LinuxOMsInstaller -AssignIdentity -IdentityType SystemAssigned
 #Now we need to fetch the policy -Id of the above. 
 
 Start-AzPolicyRemediation -PolicyAssignmentId $DefinitionWin.PolicyDefinitionId -Name WindowsOmsRemediation
 Start-AzPolicyRemediation -PolicyAssignmentId $DefinitionLinux.PolicyDefinitionId -Name LinuxOmsRemediation
+
+if($error -ne $null){
+$error.ForEach({$FunctionsToCheck["PolicyCreation"] += $_.Exception.Message})
+$error.Clear()
+}
+
+
 }
 
 #Sets our Table Retention 
@@ -188,6 +214,12 @@ Write-Output "The initial deployment of the Sentinel Resource has failed please 
 }
 
 $tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ })
+
+if($error -ne $null){
+    $error.ForEach({$FunctionsToCheck["RetentionSet"] += $_.Exception.Message})
+    $error.Clear
+}
+
 }
 
 function DataConnectors{
@@ -267,6 +299,12 @@ $TemplateToJson | Out-File /home/workingDir/WindowsLogging.json
 New-AzResourceGroupDeployment -TemplateFile WindowsLogging.json -Name WinLog
 
 Wait-Job -Name WinLog
+
+if($error -ne $null){
+    $error.ForEach({$FunctionToCheck["DataConnectors"] += $_.Exception.Message})
+    $error.Clear()
+}
+
 }
 
 New-AzResourceGroupDeployment -TemplateFile -TemplateParameterObject 
@@ -315,4 +353,51 @@ function DeployAnalyticalRules {
     Wait-Job -Name $_
     })
 
+}
+
+#Sets our Table Retention 
+function RetentionSet{
+    [CmdletBinding()]
+    param (
+        [Parameter(DontShow)]
+        [String]
+        $WorkspaceName = (Get-AzOperationalInsightsWorkspace | Select-String $pattern),
+
+        [Parameter( DontShow)]
+        [String]
+        $ResourceGroup = (Get-AzResourceGroup | Select-String -Pattern $pattern),
+
+        [Parameter(DontShow)]
+        [array]
+        $tables = @((Get-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName))
+    )
+#Before beginning iteration through the table we query to ensure that our Job has been completed to deploy our Sentinel resources. If this hasn't been completed then we wait for it to finish.
+$SentinelDeployStatus = (Get-Job -Name SentinelResourceDeploy).State
+
+if($SentinelDeployStatus -eq "Running"){
+Wait-Job -Name SentinelResourceDeploy
+
+Write-Output "The Sentinel Resources are still being deployed please wait for this to be completed."
+}elseif($SentinelDeployStatus -eq "Failed"){
+DeploySentinel
+
+Wait-Job -Name SentinelResourceDeploy
+
+Write-Output "The initial deployment of the Sentinel Resource has failed please wait while this is attempted again."
+}else {
+    $tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ })
+}
+
+$tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ })
+    if($error -ne $null){
+        $error.ForEach({$FunctionsToCheck["DeployAnalyticalRules"] += $_.Exception.Message})
+        $error.Clear()
+    }
+
+}
+
+function ErrorCheck{
+    Write-Output "The following functions of the deployment had errors: " $FunctionsToCheck.Keys
+
+    #needs menu option for what actions to be taken. Include all function calls. 
 }
