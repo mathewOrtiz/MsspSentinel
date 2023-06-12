@@ -15,7 +15,7 @@ $NewInstance = Write-Host "Enter in the tenant ID of the subscription that you n
 Set-AzContext -Tenant $NewInstance
 #Creating the static variables to use for housing errors for the error check portion of the scipt. 
 
-#Array for holding the name of the errors. 
+Set-AzContext -Subscription $AzSubscription
 $FunctionsToCheck = @{}
 
 #Used to make sure we don't get any extraneous errors. 
@@ -115,11 +115,11 @@ $MainObject = [ordered]@{
 }
 
 #Convert the above into a single JSON file that will work for the parameter file
-$MainObject | ConvertTo-Json -Depth 5 | Out-File TemplateParam.json
+$MainObject | ConvertTo-Json -Depth 5 | Out-File -FilePath /$FIlePath/TemplateParam.json
 
 Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -OutFile ArmTemaplateDeploy.json
     
-New-AzDeployment -TemplateFile ArmTemplateDeploy.json -TemplateParameterFile TemplateParam.json
+New-AzDeployment -TemplateFile $FilePath/ArmTemplateDeploy.json -TemplateParameterFile $FilePath/TemplateParam.json
 
 if($error[0]){
 $error.foreach({$FunctionsToCheck["LightHouse"] += $_.Exception.Message})
