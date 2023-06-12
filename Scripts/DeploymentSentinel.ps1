@@ -400,5 +400,4 @@ DeploySentinel
 RetentionSet
 DataConnectors
 DeployAnalyticalRules
-RetentionSet
 ErrorCheck
