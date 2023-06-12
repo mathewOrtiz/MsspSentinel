@@ -7,9 +7,16 @@ $MonitoringContrib = (Get-AzRoleDefinition -Name 'Monitoring Contributor').Id
 $ResourcePolicyContrib = (Get-AzRoleDefinition -Name 'Resource Policy Contributor').Id
 $ManagedIdContrib = (Get-AzRoleDefinition -Name 'Managed Identity Contributor').Id
 $VirtualMachineContrib = (Get-AzRoleDefinition -Name 'Classic Virtual Machine Contributor').Id
+$SentinelResponder = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Responder').Id
+$LogAnalyticsReader = (Get-AzRoleDefinition -Name 'Log Analytics Reader').Id
 $TagContrib = (Get-AzRoleDefinition -Name 'Tag Contributor').Id
+$SentinelReaderRole = (Get-AzRoleDefinition -Name 'Reader').Id
 $DisplayNameEng = "Security Engineer"
+$DisplayNameL1 = "SOC L1"
+$DisplaynameL2 = "SOC L2"
+$DisplayNameReaders = "SOC Readers"
 $StorageAccountName = Read-Host "Enter the name of the storage account containing the analytical rules."
+
 
 #Sets the context for our script to run in. This is important as it will allow the user to remotely authenti
 $NewInstance = Read-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for. "
@@ -44,8 +51,10 @@ if($error[0]){
 $error.Clear()
 
 function LightHouseConnection{
-
-$PrincipalId = Read-Host "Enter the Principal ID that will be used in this configuration"
+$SocL1ObjectId = Read-Host "Enter the Principal ID for the SOC L1 group"
+$SocL2ObjectId = Read-Host "Enter the PrincipalId for the SOC L2 Group"
+$SocEngObjectId = Read-Host "Enter the Principal ID for the SOC Eng group"
+$SentinelReaders = Read-Host "Enter the Principal ID for the Sentinel Readers Group"
 $TenantId = Read-Host "Enter the Tenant ID for the home tenant"
 #Creates our hashtable to utilize for the parameters for the JSON file.
 $parameters = [ordered]@{
@@ -91,6 +100,31 @@ $parameters = [ordered]@{
                 principalId = $PrincipalId
                 roleDefinitionId = $ManagedIdContrib
                 principalIdDisplayName = "$DisplayNameEng"
+            }
+            @{
+                principalId = $SocL1ObjectId
+                roleDefinitionId = $SentinelResponder
+                principalIdDisplayName = $DisplayNameL1
+            }
+            @{
+                principalId = $SocL2ObjectId
+                roleDefinitionId = $SentinelResponder
+                principalIdDisplayName = $DisplaynameL2
+            }
+            @{
+                principalId = $SocL1ObjectId
+                roleDefinitionId = $LogAnalyticsReader
+                principalIdDisplayName = $DisplayNameL1
+            }
+            @{
+                principalId = $SocL2ObjectId
+                roleDefinitionId = $LogAnalyticsReader
+                principalIdDisplayName = $DisplaynameL2
+            }
+            @{
+                principalId = $SentinelReaders
+                roleDefinitionId = $SentinelReaderRole
+                principalIdDisplayName = $DisplayNameReaders
             }
             
         )
@@ -347,7 +381,7 @@ function DeployAnalyticalRules {
 
     )
     #The following will need download all of the files to our working directory. 
-    $AnalyticalRules.foreach({Get-AzStorageBlobContent -Context -Blob $_ -Destination $FilePath})
+    $AnalyticalRules.foreach({Get-AzStorageBlobContent -Context -Blob $_ -Container $ContainerName -Destination $FilePath})
 
 
     #Can use the raw JSON files in order to deploy the analytical rules the params that are needed are the workspace & potentially the region.
