@@ -49,7 +49,7 @@ if($error[0]){
     $error.ForEach({$FunctionsToCheck["ResourceProviders"] += $_.Exception.Message})
 }
 $error.Clear()
-
+}
 function LightHouseConnection{
 $SocL1ObjectId = Read-Host "Enter the Principal ID for the SOC L1 group"
 $SocL2ObjectId = Read-Host "Enter the PrincipalId for the SOC L2 Group"
@@ -140,7 +140,7 @@ $MainObject = [ordered]@{
 #Convert the above into a single JSON file that will work for the parameter file
 $MainObject | ConvertTo-Json -Depth 5 | Out-File -FilePath $FilePath/TemplateParam.json
 
-Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -OutFile -FilePath $FilePath/ArmTemaplateDeploy.json
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -OutFile $FilePath/ArmTemplateDeploy.json
     
 New-AzDeployment -TemplateFile $FilePath/ArmTemplateDeploy.json -TemplateParameterFile $FilePath/TemplateParam.json
 
@@ -194,6 +194,7 @@ $WorkspaceName = Get-AzOperationalInsightsWorkspace | Select-String $pattern
 $PolicyParam = @{
     "logAnalytics" = $WorkspaceName
 }
+
 
 
 #Grabs our policy Definition for use in the next step. 
