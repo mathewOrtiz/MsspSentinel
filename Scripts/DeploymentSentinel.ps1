@@ -1,6 +1,6 @@
 #Global Variable initialized
 $pattern = "^\d{5}AzureSentinel$"
-$FIlePath = New-Item -ItemType Directory /home/WorkingDir
+$FilePath = New-Item -ItemType Directory /home/WorkingDir
 $AzSubscription = (Get-Azcontext).Name.Id
 $SentinelSecurityContrib = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Contributor').Id
 $ArcConnected = (Get-AzRoleDefinition -Name 'Azure Connected Machine Resource Administrator').Id
@@ -9,20 +9,20 @@ $ResourcePolicyContrib = (Get-AzRoleDefinition -Name 'Resource Policy Contributo
 $ManagedIdContrib = (Get-AzRoleDefinition -Name 'Managed Identity Contributor').Id
 $VirtualMachineContrib = (Get-AzRoleDefinition -Name 'Classic Virtual Machine Contributor').Id
 $TagContrib = (Get-AzRoleDefinition -Name 'Tag Contributor').Id
+$DisplayNameEng = "Security Engineer"
 
-$NewInstance = Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for. "
-
+#Sets the context for our script to run in. This is important as it will allow the user to remotely authenti
+$NewInstance = Read-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for. "
 Set-AzContext -Tenant $NewInstance
-#Creating the static variables to use for housing errors for the error check portion of the scipt. 
-
 Set-AzContext -Subscription $AzSubscription
+#Creating the static variables to use for housing errors for the error check portion of the scipt. 
 $FunctionsToCheck = @{}
 
 #Used to make sure we don't get any extraneous errors. 
 $error.Clear()
 function ResourceProviders{
 #The below needs to be populated With the necessary namespaces as well as creating a array with the required resource providers.
-$RequiredProviderCheck =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights','Microsoft.HybridConnectivity')
+$RequiredProviderCheck =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights','Microsoft.HybridConnectivity','Microsoft.ManagedIdentity','Microsoft.AzureArcData','Microsoft.OperationsManagement','microsoft.insights','Microsoft.HybridCompute','Microsoft.GuestConfiguration','Microsoft.Automanage','Microsoft.MarketplaceNotifications','Microsoft.ManagedServices')
 #Need to add here the fetching of the necessary files.
 
 #Checks whether or not the necessary namespace is Registered or not and then performs a register if necessary. 
@@ -38,10 +38,6 @@ if($error[0]){
     $error.ForEach({$FunctionsToCheck["ResourceProviders"] += $_.Exception.Message})
 }
 $error.Clear()
-$NewInstance = Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for. "
-
-Set-AzContext -Tenant $NewInstance
-
 
 function LightHouseConnection{
 
@@ -60,28 +56,39 @@ $parameters = [ordered]@{
             @{
                 principalId = $PrincipalId
                 roleDefinitionId = $SentinelSecurityContrib
-                principalIdDisplayName = "Security Engineer"
+                principalIdDisplayName = "$DisplayNameEng"
             }
             @{
                 principalId = $PrincipalId
                 roleDefinitionId = $ArcConnected
-                principalIdDisplayName = "Security Engineer"
+                principalIdDisplayName = "$DisplayNameEng"
             }
             @{
                 principalId = $PrincipalId
                 roleDefinitionId = $MonitoringContrib
-                principalIdDisplayName = "Security Engineer"
+                principalIdDisplayName = "$DisplayNameEng"
             }
             @{
                 principalId = $PrincipalId
                 roleDefinitionId = $TagContrib
-                principalIdDisplayName = "Security Engineer"
+                principalIdDisplayName = "$DisplayNameEng"
             }
             @{
                 principalId = $PrincipalId
                 roleDefinitionId = $VirtualMachineContrib
-                principalIdDisplayName = "Security Engineer"
+                principalIdDisplayName = "$DisplayNameEng"
             }
+            @{
+                principalId = $PrincipalId
+                roleDefinitionId = $ResourcePolicyContrib
+                principalIdDisplayName = "$DisplayNameEng"
+            }
+            @{
+                principalId = $PrincipalId
+                roleDefinitionId = $ManagedIdContrib
+                principalIdDisplayName = "$DisplayNameEng"
+            }
+            
         )
     }
 }
@@ -93,7 +100,7 @@ $MainObject = [ordered]@{
 }
 
 #Convert the above into a single JSON file that will work for the parameter file
-$MainObject | ConvertTo-Json -Depth 5 | Out-File -FilePath /$FIlePath/TemplateParam.json
+$MainObject | ConvertTo-Json -Depth 5 | Out-File -FilePath /$FilePath/TemplateParam.json
 
 Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -OutFile ArmTemaplateDeploy.json
     
@@ -283,18 +290,14 @@ function DataConnectors{
         
   )
     
-    #Creates our necessary log sources for the Oms agent log collection. This will need to be updated if we add in a new method for the ARC agent. 
-    $WinLogSources.ForEach({New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -EventLogName $WinLogSources})
-    $LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -EventLogName $LinuxLogSources})
+#Creates our necessary log sources for the Oms agent log collection. This will need to be updated if we add in a new method for the ARC agent. 
+$WinLogSources.ForEach({New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -EventLogName $WinLogSources})
+$LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -EventLogName $LinuxLogSources})
 
-#Deploy the Bicep Template
-
-#Convert the defined template to proper JSON 
-
-
+#Creates the JSON template file from the above parameters we have set. 
 $TemplateToJson = Convert-ToJson $Template -Depth 100
 
-$TemplateToJson | Out-File /home/workingDir/WindowsLogging.json
+$TemplateToJson | Out-File /$FilePath/WindowsLogging.json
 
 New-AzResourceGroupDeployment -TemplateFile WindowsLogging.json -Name WinLog
 
@@ -401,3 +404,12 @@ function ErrorCheck{
 
     #needs menu option for what actions to be taken. Include all function calls. 
 }
+
+ResourceProviders
+LightHouseConnection
+DeploySentinel
+RetentionSet
+DataConnectors
+DeployAnalyticalRules
+RetentionSet
+ErrorCheck
