@@ -1,7 +1,6 @@
 #Global Variable initialized
 $pattern = "^\d{5}AzureSentinel$"
 $FilePath = New-Item -ItemType Directory /home/WorkingDir
-$AzSubscription = (Get-Azcontext).Name.Id
 $SentinelSecurityContrib = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Contributor').Id
 $ArcConnected = (Get-AzRoleDefinition -Name 'Azure Connected Machine Resource Administrator').Id
 $MonitoringContrib = (Get-AzRoleDefinition -Name 'Monitoring Contributor').Id
@@ -14,6 +13,7 @@ $DisplayNameEng = "Security Engineer"
 #Sets the context for our script to run in. This is important as it will allow the user to remotely authenti
 $NewInstance = Read-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for. "
 Set-AzContext -Tenant $NewInstance
+$AzSubscription = (Get-Azcontext).Name.Id
 Set-AzContext -Subscription $AzSubscription
 #Creating the static variables to use for housing errors for the error check portion of the scipt. 
 $FunctionsToCheck = @{}
