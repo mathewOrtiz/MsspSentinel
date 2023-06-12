@@ -175,16 +175,14 @@ param (
     dataRetention = 90
 }
 )
+New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $TemplateParameters -ResourceGroupName $CustName -AsJob -JobName "SentinelDeploy"
 
-New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $TemplateParameters -ResourceGroupName $CustName -AsJob[PSCustomObject]@{
-New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $TemplateParameters -ResourceGroupName $CustName -AsJ[PSCustomObject]@{
-    Name = SentinelResourceDeploy
-}
 if($error[0]){
-$FunctionsToCheck["DeploySentinel"] = null
-$error.ForEach({$FunctionsToCheck["DeploySentinel"] += $_.Exception.Message})
-
-$error.Clear()
+    $FunctionsToCheck["DeploySentinel"] = null
+    $error.ForEach({$FunctionsToCheck["DeploySentinel"] += $_.Exception.Message})
+    
+    $error.Clear()
+}
 #We have now deployed the LogAnalytics Workspace & Sentinel Instance
    }
 
