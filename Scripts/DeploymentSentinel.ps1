@@ -37,6 +37,32 @@ if($error[0]){
     $error.ForEach({$FunctionsToCheck["ResourceProviders"] += $_.Exception.Message})
 }
 $error.Clear()
+$NewInstance = Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for. "
+
+Set-AzContext -Tenant $NewInstance
+function ResourceProviders{
+#The below needs to be populated With the necessary namespaces as well as creating a array with the required resource providers.
+$ResourceProivder = @(Get-AzResourceProvider -ProviderNamespace)
+$RequiredProviders =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights')
+#Need to add here the fetching of the necessary files.
+
+#Check to see if we need to register additional resource providers before running our ARM template.
+$MissingProviders = @()
+
+$NecessaryProviders = $true
+#need to evaluate if calling the array through the in-built for method will be more efficient.
+foreach ($value in $RequiredProviders){
+    if (!($ResourceProivder -contains $value)){
+        $NecessaryProviders = $false
+        $MissingProviders += $MissingProviders
+    }
+}
+
+if($NecessaryProviders -eq $false){
+    foreach ($MissingProvider in $MissingProviders){
+        Register-AzResourceProvider -ProviderNamespace $RequiredProvider
+    }
+}
 }
 
 function LightHouseConnection{
@@ -138,6 +164,8 @@ $error.ForEach({$FunctionsToCheck["DeploySentinel"] += $_.Exception.Message})
 $error.Clear()
 #We have now deployed the LogAnalytics Workspace & Sentinel Instance
    }
+
+#We have now deployed the LogAnalytics Workspace & Sentinel Instance
 }
 function PolicyCreation{
 #Creating the necessary policies
