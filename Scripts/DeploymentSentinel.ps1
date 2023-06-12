@@ -28,7 +28,7 @@ $RequiredProviderCheck =  @('Microsoft.SecurityInsights', 'Microsoft.Operational
 
 #Checks whether or not the necessary namespace is Registered or not and then performs a register if necessary. 
 $RequiredProviderCheck.ForEach({($ProviderName = Get-AzResourceProvider -ProviderNamespace $_).RegistrationState | Select-Object -First 1
-if($ProviderName -contains "NotRegistred"){
+if($ProviderName -match "NotRegistred"){
 Register-AzResourceProvider -ProviderNamespace $_
 }
 })
