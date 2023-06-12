@@ -67,37 +67,37 @@ $parameters = [ordered]@{
     authorizations =@{
         value =@(
             @{
-                principalId = $PrincipalId
+                principalId = $SocEngObjectId
                 roleDefinitionId = $SentinelSecurityContrib
                 principalIdDisplayName = "$DisplayNameEng"
             }
             @{
-                principalId = $PrincipalId
+                principalId = $SocEngObjectId
                 roleDefinitionId = $ArcConnected
                 principalIdDisplayName = "$DisplayNameEng"
             }
             @{
-                principalId = $PrincipalId
+                principalId = $SocEngObjectId
                 roleDefinitionId = $MonitoringContrib
                 principalIdDisplayName = "$DisplayNameEng"
             }
             @{
-                principalId = $PrincipalId
+                principalId = $SocEngObjectId
                 roleDefinitionId = $TagContrib
                 principalIdDisplayName = "$DisplayNameEng"
             }
             @{
-                principalId = $PrincipalId
+                principalId = $SocEngObjectId
                 roleDefinitionId = $VirtualMachineContrib
                 principalIdDisplayName = "$DisplayNameEng"
             }
             @{
-                principalId = $PrincipalId
+                principalId = $SocEngObjectId
                 roleDefinitionId = $ResourcePolicyContrib
                 principalIdDisplayName = "$DisplayNameEng"
             }
             @{
-                principalId = $PrincipalId
+                principalId = $SocEngObjectId
                 roleDefinitionId = $ManagedIdContrib
                 principalIdDisplayName = "$DisplayNameEng"
             }
