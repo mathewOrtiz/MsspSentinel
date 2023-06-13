@@ -162,7 +162,7 @@ param (
     $CustName,
 
     [Parameter(Mandatory=$true, HelpMessage="Please enter the location that is closet to this customer. Using the foramt eastus,westus etc")]
-    [ValidatePattern('^([a-z]{2}-[a-z]{2}-\d{1})$')]
+    [ValidatePattern('^([a-z0-9]+)$')]
     [string]
     $location,
 
@@ -171,7 +171,7 @@ param (
     $TemplateParameters = [ordered]@{
     workspaceName = $CustName
     location = $location
-    sku = PerGB2018
+    sku = 'PerGB2018'
     dataRetention = 90
 }
 )
