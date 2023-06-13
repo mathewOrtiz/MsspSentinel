@@ -157,7 +157,7 @@ function DeploySentinel{
 [CmdletBinding()]
 param (
     [Parameter(Mandatory=$true, HelpMessage="Please enter the name of the customer using the format H#AzureSentinel")]
-    [ValidatePattern('$pattern')]
+    [ValidatePattern('^H\d{5}AzureSentinel$')]
     [string]
     $CustName,
 
