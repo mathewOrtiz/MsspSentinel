@@ -1,5 +1,5 @@
 #Global Variable initialized
-$pattern = "^\d{5}AzureSentinel$"
+$pattern = "^H\d{5}AzureSentinel$"
 $FilePath = New-Item -ItemType Directory /home/WorkingDir
 $SentinelSecurityContrib = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Contributor').Id
 $ArcConnected = (Get-AzRoleDefinition -Name 'Azure Connected Machine Resource Administrator').Id
