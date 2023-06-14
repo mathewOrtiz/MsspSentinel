@@ -164,24 +164,30 @@ param (
     [Parameter(Mandatory=$true, HelpMessage="Please enter the location that is closet to this customer. Using the foramt eastus,westus etc")]
     [ValidatePattern('^([a-z0-9]+)$')]
     [string]
-    $location,
-
-    [Parameter(DontShow)]
-    [hashtable]
-    $TemplateParameters = [ordered]@{
-    workspaceName = $CustName
-    location = $location
-    sku = 'PerGB2018'
-    dataRetention = 90
-}
+    $location
 )
-New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $TemplateParameters -ResourceGroupName $CustName -AsJob -JobName "SentinelDeploy"
+
+#Deploys the resource group which will house the Sentinel resources. 
+New-AzResourceGroup -Name $CustName -Location $location
+
+#using the match regex we are able to ensure we grab only the resource group that we created in the previous step of variable init. 
+(Get-AzResourceGroup).ResourceGroupName
+$ResourceGroupName = Read-Host "Enter in the Resource Group Name"
+
+#The following pulls down the ARM template which is used by the SOC and then utilizes this connection in order to allow for the necessary changing of the workspace name. We grab the location dynamically when the script runs in this case. 
+Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/mathewOrtiz/MsspSentinel/main/ARM/NtiretyMsspAzureResources.json' -OutFile $FilePath/NtiretyMsspAzureResources.json
+$ArmContent = Get-Content -Raw -Path $FilePath/NtiretyMsspAzureResources.json | ConvertFrom-Json -AsHashtable
+$ArmContent.parameters.workspaceName.defaultValue = $ResourceGroupName
+$CompleteTemplate = $ArmContent | ConvertTo-Json -Depth 10
+$CompleteTemplate |Set-Content -Path $FilePath/NtiretyMsspAzureResources.json
+
+
+New-AzResourceGroupDeployment -TemplateFile $FilePath/NtiretyMsspAzureResources.json  -ResourceGroupName $CustName -WorkspaceName $CustName
 
 #Exist to catch errors associated with this run
 if($error[0]){
-    $FunctionsToCheck["DeploySentinel"] = null
     $error.ForEach({$FunctionsToCheck["DeploySentinel"] += $_.Exception.Message})
-    $error.Clear()
+   $error.Clear()
     }
 }
 
