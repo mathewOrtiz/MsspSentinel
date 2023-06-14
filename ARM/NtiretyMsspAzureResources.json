@@ -11,6 +11,7 @@
   "parameters": {
     "workspaceName": {
       "type": "string",
+      "defaultValue": "Sentinel",
       "metadata": {
         "description": "Name for the Log Analytics workspace This should be named as H#AzureSentinelWorkspace"
       }
