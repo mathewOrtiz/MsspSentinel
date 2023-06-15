@@ -1,5 +1,5 @@
 #Global Variable initialized
-$pattern = "^H\d{5}AzureSentinel$"
+$pattern = "^H\d+AzureSentinel$"
 $FilePath = New-Item -ItemType Directory /home/WorkingDir
 $SentinelSecurityContrib = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Contributor').Id
 $ArcConnected = (Get-AzRoleDefinition -Name 'Azure Connected Machine Resource Administrator').Id
@@ -157,7 +157,7 @@ function DeploySentinel{
 [CmdletBinding()]
 param (
     [Parameter(Mandatory=$true, HelpMessage="Please enter the name of the customer using the format H#AzureSentinel")]
-    [ValidatePattern('^H\d{5}AzureSentinel$')]
+    [ValidatePattern('^H\d+AzureSentinel$')]
     [string]
     $CustName,
 
