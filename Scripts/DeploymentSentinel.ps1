@@ -301,7 +301,11 @@ function PolicyCreation{
 
             [Parameter(DontShow)]
             [string]
-            $Uri = "https://raw.githubusercontent.com/mathewOrtiz/MsspSentinel/FinalTesting/ARM/NtiretySecurityWinEvents.json"
+            $Uri = "https://raw.githubusercontent.com/mathewOrtiz/MsspSentinel/FinalTesting/ARM/NtiretySecurityWinEvents.json",
+
+            [Parameter(DontShow)]
+            [string]
+            $SubscriptionId = ((Get-AzContext).Subscription.Id)
 )
     
     Invoke-WebRequest -Uri $Uri -OutFile $FilePath/NtiretySecurityWinEvents.json
@@ -311,7 +315,7 @@ function PolicyCreation{
 
     $WinLogSources.ForEach({New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Name $_ -CollectErrors -CollectWarnings -CollectInformation -EventLogName $_})
     $LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Facility $_ -CollectEmergency -CollectAlert -CollectCritical -CollectError -CollectWarning -CollectNotice -EventLogName $_})
-    
+    New-AzOperationalInsightsAzureActivityLogDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Name AzureActivityLog -SubscriptionId $SubscriptionId
     if($error -ne $null){
         $error.ForEach({$FunctionToCheck["DataConnectors"] += $_.Exception.Message})
         $error.Clear()
