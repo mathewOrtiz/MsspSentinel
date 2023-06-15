@@ -289,7 +289,7 @@ function PolicyCreation{
     
             [Parameter(DontShow)]
             [string]
-            $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name),
+            $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Select-String -Pattern $pattern),
     
             [Parameter(DontShow)]
             [array]
@@ -298,78 +298,16 @@ function PolicyCreation{
             [Parameter(DontShow)]
             [array]
             $LinuxLogSources = @('Auth','authpriv','syslog','cron'),
-    
-    
-            #Defines our parameters for our arm temaple
+
             [Parameter(DontShow)]
-            [hashtable]
-            $ParametersForTemplate = @{
-                workspaceName =@{
-                    type = 'string'
-                    defaultvalue = $WorkspaceName
-                }
-                dataSourceName = @{
-                    type = 'string'
-                    defaultvalue = 'SecurityInsightsSecurityEventCollectionConfiguration'
-                }
-            },
-            
-            #Defines our resources for our Arm template
-    #        [Parameter(DontShow)]
-    #        [hashtable]
-    #        $ResoucesTemplate = @(
-    #            @{
-    #                "type" = "Microsoft.OperationalInsights/workspaces/dataSources"
-    #                "apiVersion" = "2020-08-01"
-    #                "name" = "[concat(parameters('workspaceName'), '/', parameters('dataSourceName'))]"
-    #                "kind" = 'dataSourceName'
-    #                    "properties" = @{
-    #                        "tier" = 'Recommended'
-    #                    }
-    #            }
-    #        ),
+            [string]
+            $Uri = "https://raw.githubusercontent.com/mathewOrtiz/MsspSentinel/FinalTesting/ARM/NtiretySecurityWinEvents.json"
+)
     
-            #Define the ARM template
-            [Parameter(DontShow)]
-            [hashtable]
-            $Template = @{
-                '$schema' = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
-                contentVersion = '1.0.0.0'
-                parameters = @{
-                    'workspaceName' =@{
-                        type = 'string'
-                        defaultvalue = $WorkspaceName
-                    }
-                'dataSourceValue' = @{
-                    type = 'string'
-                    defaultValue = 'SecurityInsightsSecurityEventCollectionConfiguration'
-                }
-            }
-                'resource' = @{
-                    
-                        "type" = "Microsoft.OperationalInsights/workspaces/dataSources"
-                        "apiVersion" = "2020-08-01"
-                        "name" = "[concat(parameters('workspaceName'), '/', parameters('dataSourceName'))]"
-                        "kind" = 'dataSourceName'
-                            "properties" = @{
-                                "tier" = 'Recommended'
-                            }
-                }
-            }
-            
-      )
-        
-    #Creates our necessary log sources for the Oms agent log collection. This will need to be updated if we add in a new method for the ARC agent. 
-    #$WinLogSources.ForEach({New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Name $_ -CollectErrors -CollectWarnings -CollectInformation -EventLogName $_})
-    #$LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Facility $_ -CollectEmergency -CollectAlert -CollectCritical -CollectError -CollectWarning -CollectNotice -EventLogName $_})
+    Invoke-WebRequest -Uri $Uri -OutFile $FilePath/NtiretySecurityWinEvents.json
     
-    #Creates the JSON template file from the above parameters we have set. 
-    $TemplateToJson = $Template | Convert-ToJson -Depth 100
-    
-    $TemplateToJson | Out-File $FilePath/WindowsLogging.json
-    
-    New-AzResourceGroupDeployment -TemplateFile WindowsLogging.json -Name WinLog
-    
+    New-AzResourceGroupDeployment -TemplateFile $FilePath/NtiretySecurityWinEvents.json -WorkspaceName $WorkspaceName -ResourceGroupName $ResourceGroupName -securityCollectionTier Recommended -AsJob
+
     Wait-Job -Name WinLog
     
     if($error -ne $null){
