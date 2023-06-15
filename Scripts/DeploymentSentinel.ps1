@@ -311,7 +311,7 @@ function DataConnectors{
 
         #Defines our parameters for our arm temaple
         [Parameter(DontShow)]
-        [hastable]
+        [hashtable]
         $ParametersForTemplate = @{
             workspaceName =@{
                 type = 'string'
@@ -325,7 +325,7 @@ function DataConnectors{
         
         #Defines our resources for our Arm template
         [Parameter(DontShow)]
-        [hastable]
+        [hashtable]
         $ResoucesTemplate = @(
             @{
                 "type" = "Microsoft.OperationalInsights/workspaces/dataSources"
@@ -340,7 +340,7 @@ function DataConnectors{
 
         #Define the ARM template
         [Parameter(DontShow)]
-        [hastable]
+        [hashtable]
         $Template = @{
             '$schema' = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
             contentVersion = '1.0.0.0'
