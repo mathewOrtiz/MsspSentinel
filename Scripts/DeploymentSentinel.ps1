@@ -191,6 +191,9 @@ if($error[0]){
     }
 }
 
+#Deploy Sentinel
+New-AzSentinelOnboardingState -ResourceGroupName $CustName -WorkspaceName $CustName -Name "default"
+
 function PolicyCreation{
 
     [CmdletBinding()]
