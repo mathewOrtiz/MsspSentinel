@@ -192,38 +192,52 @@ if($error[0]){
 }
 
 function PolicyCreation{
-#Creating the necessary policies
-#$Subscription = (Get-AzContext).Subscription.Id
-#$ResourceGroup = Get-AzResourceGroup | Select-String -Pattern $pattern
-$WorkspaceName = Get-AzOperationalInsightsWorkspace | Select-String $pattern
 
-$PolicyParam = @{
-    "logAnalytics" = $WorkspaceName
-}
-
-
-
-#Grabs our policy Definition for use in the next step. 
-$DefinitionWin = Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Windows servers' }
-$DefinitionLinux = Get-AzPolicyDefinition | Where-Object {$_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Linux servers.'}
-
-#begin creation of our new policy
-
-#need to see if the variables being assigned here is really necessary. 
-New-AzPolicyAssignment -PolicyDefinition $DefinitionWin -PolicyParameterObject $PolicyParam -Name WindowsOmsInstaller -AssignIdentity -IdentityType SystemAssigned
-New-AzPolicyAssignment -PolicyDefinition $DefinitionLinux -PolicyParameterObject $PolicyParam -Name LinuxOMsInstaller -AssignIdentity -IdentityType SystemAssigned
-#Now we need to fetch the policy -Id of the above. 
-
-Start-AzPolicyRemediation -PolicyAssignmentId $DefinitionWin.PolicyDefinitionId -Name WindowsOmsRemediation
-Start-AzPolicyRemediation -PolicyAssignmentId $DefinitionLinux.PolicyDefinitionId -Name LinuxOmsRemediation
-
-if($error -ne $null){
-$error.ForEach({$FunctionsToCheck["PolicyCreation"] += $_.Exception.Message})
-$error.Clear()
-}
-
-
-}
+    [CmdletBinding()]
+    param (
+        [Parameter(DontShow)]
+        [String]
+        $WinAssignName = 'WindowsOms',
+    
+        [Parameter(DontShow)]
+        [String]
+        $LinAssignName = 'LinuxOms',
+    
+        [Parameter]
+        [String]
+        $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Select-String -Pattern $pattern),
+    
+        [Parameter(DontShow)]
+        [String]
+        $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Select-String -Pattern $pattern)
+    )
+    
+    #Grabs our policy Definition for use in the next step. 
+    $DefinitionWin = Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Windows servers' }
+    $DefinitionLinux = Get-AzPolicyDefinition | Where-Object {$_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Linux servers. See deprecation notice below'}
+    
+    $WorkspaceName = (Get-AzOperationalInsightsWorkspace).Name
+    $WorkspaceName
+    
+    #begin creation of our new policy
+    
+    #need to see if the variables being assigned here is really necessary. 
+    New-AzPolicyAssignment -Name $WinAssignName -PolicyDefinition $DefinitionWin -PolicyParameterObject @{"logAnalytics"="$WorkspaceName"} -AssignIdentity -Location eastus
+    New-AzPolicyAssignment -Name $LinAssignName -PolicyDefinition $DefinitionLinux -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location eastus
+    #Now we need to fetch the policy -Id of the above. 
+    
+    $PolicyAssignWind = (Get-AzPolicyAssignment -Name WindowsOmsInstaller).PolicyAssignmentId
+    $PolicyAssignLinux = (Get-AzPolicyAssignment -Name $LinAssignName).PolicyAssignmentId 
+    
+    start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignWind -Name WindowsOmsRemediation
+    Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignLinux -Name LinuxOmsRemediation
+    
+    if($error -ne $null){
+    $error.ForEach({$FunctionsToCheck["PolicyCreation"] += $_.Exception.Message})
+    $error.Clear()
+    }
+    
+    }
 
 #Sets our Table Retention 
 function RetentionSet{
