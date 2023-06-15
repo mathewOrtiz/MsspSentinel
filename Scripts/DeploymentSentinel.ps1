@@ -273,10 +273,8 @@ Wait-Job -Name SentinelResourceDeploy
 
 Write-Output "The initial deployment of the Sentinel Resource has failed please wait while this is attempted again."
 }else {
-    $tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ })
+    $tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ -AsJob})
 }
-
-$tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ })
 
 if($error -ne $null){
     $error.ForEach({$FunctionsToCheck["RetentionSet"] += $_.Exception.Message})
