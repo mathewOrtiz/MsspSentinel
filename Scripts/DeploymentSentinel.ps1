@@ -190,8 +190,8 @@ New-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Worksp
 #$CompleteTemplate = $ArmContent | ConvertTo-Json -Depth 10
 #$CompleteTemplate |Set-Content -Path $FilePath/NtiretyMsspAzureResources.json
 
-
-New-AzResourceGroupDeployment -TemplateFile $FilePath/NtiretyMsspAzureResources.json  -ResourceGroupName $CustName -WorkspaceName $CustName
+#Deploy Sentinel
+New-AzSentinelOnboardingState -ResourceGroupName $CustName -WorkspaceName $CustName -Name "default"
 
 #Exist to catch errors associated with this run
 if($error[0]){
@@ -199,9 +199,6 @@ if($error[0]){
    $error.Clear()
     }
 }
-
-#Deploy Sentinel
-New-AzSentinelOnboardingState -ResourceGroupName $CustName -WorkspaceName $CustName -Name "default"
 
 function PolicyCreation{
 
