@@ -226,7 +226,6 @@ function PolicyCreation{
     $DefinitionLinux = Get-AzPolicyDefinition | Where-Object {$_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Linux servers. See deprecation notice below'}
     
     $WorkspaceName = (Get-AzOperationalInsightsWorkspace).Name
-    $WorkspaceName
     
     #begin creation of our new policy
     
@@ -247,128 +246,138 @@ function PolicyCreation{
     }
     
     }
-
-#Sets our Table Retention 
-function RetentionSet{
-    [CmdletBinding()]
-    param (
-        [Parameter(DontShow)]
-        [String]
-        $WorkspaceName = (Get-AzOperationalInsightsWorkspace | Select-String $pattern),
-
-        [Parameter( DontShow)]
-        [String]
-        $ResourceGroup = (Get-AzResourceGroup | Select-String -Pattern $pattern),
-
-        [Parameter(DontShow)]
-        [array]
-        $tables = @((Get-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName))
-    )
-#Before beginning iteration through the table we query to ensure that our Job has been completed to deploy our Sentinel resources. If this hasn't been completed then we wait for it to finish.
-$SentinelDeployStatus = (Get-Job -Name SentinelResourceDeploy).State
-
-if($SentinelDeployStatus -eq "Running"){
-Wait-Job -Name SentinelResourceDeploy
-
-Write-Output "The Sentinel Resources are still being deployed please wait for this to be completed."\
-#The below will re-run the sentinel deploy script in order to ensure that the necessary resources are created to be modified. 
-}elseif($SentinelDeployStatus -eq "Failed"){
-DeploySentinel
-
-Wait-Job -Name SentinelResourceDeploy
-
-Write-Output "The initial deployment of the Sentinel Resource has failed please wait while this is attempted again."
-}else {
-    $tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ -AsJob})
-}
-
-if($error -ne $null){
-    $error.ForEach({$FunctionsToCheck["RetentionSet"] += $_.Exception.Message})
-    $error.Clear
-}
-
-}
-
-function DataConnectors{
-    [CmdletBinding()]
-    param (
-        [Parameter(DontShow)]
-        [string]
-        $ResourceGroup = (Get-AzResourceGroup | Select-String),
-
-        [Parameter(DontShow)]
-        [string]
-        $WorkspaceName = (Get-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName),
-
-        [Parameter(DontShow)]
-        [array]
-        $WinLogSources = @('System','Application'),
-
-        [Parameter(DontShow)]
-        [array]
-        $LinuxLogSources = @('Auth','authpriv','syslog','cron'),
-
-
-        #Defines our parameters for our arm temaple
-        [Parameter(DontShow)]
-        [hashtable]
-        $ParametersForTemplate = @{
-            workspaceName =@{
-                type = 'string'
-                defaultvalue = $WorkspaceName
-            }
-            dataSourceName = @{
-                type = 'string'
-                defaultvalue = 'SecurityInsightsSecurityEventCollectionConfiguration'
-            }
-        },
-        
-        #Defines our resources for our Arm template
-        [Parameter(DontShow)]
-        [hashtable]
-        $ResoucesTemplate = @(
-            @{
-                "type" = "Microsoft.OperationalInsights/workspaces/dataSources"
-                "apiVersion" = "2020-08-01"
-                "name" = "[concat(parameters('workspaceName'), '/', parameters('dataSourceName'))]"
-                "kind" = 'dataSourceName'
-                    "properties" = @{
-                        "tier" = 'Recommended'
-                    }
-            }
-        ),
-
-        #Define the ARM template
-        [Parameter(DontShow)]
-        [hashtable]
-        $Template = @{
-            '$schema' = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
-            contentVersion = '1.0.0.0'
-            parameters = $ParametersForTemplate
-            resource = $ResoucesTemplate
-        }
-        
-  )
     
-#Creates our necessary log sources for the Oms agent log collection. This will need to be updated if we add in a new method for the ARC agent. 
-$WinLogSources.ForEach({New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -EventLogName $WinLogSources})
-$LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -EventLogName $LinuxLogSources})
-
-#Creates the JSON template file from the above parameters we have set. 
-$TemplateToJson = Convert-ToJson $Template -Depth 100
-
-$TemplateToJson | Out-File $FilePath/WindowsLogging.json
-
-New-AzResourceGroupDeployment -TemplateFile WindowsLogging.json -Name WinLog
-
-Wait-Job -Name WinLog
-
-if($error -ne $null){
-    $error.ForEach({$FunctionToCheck["DataConnectors"] += $_.Exception.Message})
-    $error.Clear()
-}
-
-}
+    #Sets our Table Retention 
+    function RetentionSet{
+        [CmdletBinding()]
+        param (
+            [Parameter(DontShow)]
+            [String]
+            $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Select-String $pattern),
+    
+            [Parameter( DontShow)]
+            [String]
+            $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Select-String -Pattern $pattern),
+    
+            [Parameter(DontShow)]
+            [array]
+            $tables = @((Get-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName))
+    
+        )
+    #Before beginning iteration through the table we query to ensure that our Job has been completed to deploy our Sentinel resources. If this hasn't been completed then we wait for it to finish.
+    
+    #The below will re-run the sentinel deploy script in order to ensure that the necessary resources are created to be modified. 
+    
+    $tables.ForEach({Start-Job -Name TableUpdate {Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_}
+    
+    }
+    )
+    
+    if($error -ne $null){
+        $error.ForEach({$FunctionsToCheck["RetentionSet"] += $_.Exception.Message})
+        $error.Clear
+    }
+    
+    }
+    
+    function DataConnectors{
+        [CmdletBinding()]
+        param (
+            [Parameter(DontShow)]
+            [string]
+            $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Select-String -Pattern $pattern),
+    
+            [Parameter(DontShow)]
+            [string]
+            $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name),
+    
+            [Parameter(DontShow)]
+            [array]
+            $WinLogSources = @("System", "Application"),
+    
+            [Parameter(DontShow)]
+            [array]
+            $LinuxLogSources = @('Auth','authpriv','syslog','cron'),
+    
+    
+            #Defines our parameters for our arm temaple
+            [Parameter(DontShow)]
+            [hashtable]
+            $ParametersForTemplate = @{
+                workspaceName =@{
+                    type = 'string'
+                    defaultvalue = $WorkspaceName
+                }
+                dataSourceName = @{
+                    type = 'string'
+                    defaultvalue = 'SecurityInsightsSecurityEventCollectionConfiguration'
+                }
+            },
+            
+            #Defines our resources for our Arm template
+    #        [Parameter(DontShow)]
+    #        [hashtable]
+    #        $ResoucesTemplate = @(
+    #            @{
+    #                "type" = "Microsoft.OperationalInsights/workspaces/dataSources"
+    #                "apiVersion" = "2020-08-01"
+    #                "name" = "[concat(parameters('workspaceName'), '/', parameters('dataSourceName'))]"
+    #                "kind" = 'dataSourceName'
+    #                    "properties" = @{
+    #                        "tier" = 'Recommended'
+    #                    }
+    #            }
+    #        ),
+    
+            #Define the ARM template
+            [Parameter(DontShow)]
+            [hashtable]
+            $Template = @{
+                '$schema' = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
+                contentVersion = '1.0.0.0'
+                parameters = @{
+                    'workspaceName' =@{
+                        type = 'string'
+                        defaultvalue = $WorkspaceName
+                    }
+                'dataSourceValue' = @{
+                    type = 'string'
+                    defaultValue = 'SecurityInsightsSecurityEventCollectionConfiguration'
+                }
+            }
+                'resource' = @{
+                    
+                        "type" = "Microsoft.OperationalInsights/workspaces/dataSources"
+                        "apiVersion" = "2020-08-01"
+                        "name" = "[concat(parameters('workspaceName'), '/', parameters('dataSourceName'))]"
+                        "kind" = 'dataSourceName'
+                            "properties" = @{
+                                "tier" = 'Recommended'
+                            }
+                }
+            }
+            
+      )
+        
+    #Creates our necessary log sources for the Oms agent log collection. This will need to be updated if we add in a new method for the ARC agent. 
+    #$WinLogSources.ForEach({New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Name $_ -CollectErrors -CollectWarnings -CollectInformation -EventLogName $_})
+    #$LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Facility $_ -CollectEmergency -CollectAlert -CollectCritical -CollectError -CollectWarning -CollectNotice -EventLogName $_})
+    
+    #Creates the JSON template file from the above parameters we have set. 
+    $TemplateToJson = $Template | Convert-ToJson -Depth 100
+    
+    $TemplateToJson | Out-File $FilePath/WindowsLogging.json
+    
+    New-AzResourceGroupDeployment -TemplateFile WindowsLogging.json -Name WinLog
+    
+    Wait-Job -Name WinLog
+    
+    if($error -ne $null){
+        $error.ForEach({$FunctionToCheck["DataConnectors"] += $_.Exception.Message})
+        $error.Clear()
+    }
+    
+    }
 
 
 
