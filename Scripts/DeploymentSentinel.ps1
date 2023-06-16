@@ -33,7 +33,7 @@ $NewSub = Read-Host
 Set-AzContext -Subscription $NewSub
 
 #After setting our context to the necessary customer tenant we grab the Subscription ID to use later on for Analytical rule import.
-$AzSubscription = (Get-Azcontext).Name.Id
+$AzSubscription = (Get-AzContext).Subscription.Id
 
 
 #Creating the static variables to use for housing errors for the error check portion of the scipt. This hashtable will have all of the necessary errors. 
