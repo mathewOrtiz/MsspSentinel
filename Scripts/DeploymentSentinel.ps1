@@ -343,8 +343,8 @@ function PolicyCreation{
         $error.Clear()
     }
 #The following below is used in order to set our context working directory back to our primary Sentinel tenant. We then reauth to the subscription under this AD user versus our Ntirety Principal User.
-    Set-AzContext $HomeContext
-    Set-AzContext $AzSubscription
+    Set-AzContext -Tenant $HomeContext
+    Set-AzContext -Subscription $AzSubscription
     }
 
 
