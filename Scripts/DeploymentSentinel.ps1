@@ -236,7 +236,7 @@ function PolicyCreation{
 
         [Parameter(DontShow)]
         [string]
-        $ActivityName 'AzureActivityLog'
+        $ActivityName = 'AzureActivityLog'
     )
     
     #Grabs our policy Definition for use in the next step. 
