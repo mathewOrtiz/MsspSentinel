@@ -17,7 +17,7 @@ $DisplayNameL1 = "SOC L1"
 $DisplaynameL2 = "SOC L2"
 $DisplayNameReaders = "SOC Readers"
 $StorageAccountName = Read-Host "Enter the name of the storage account containing the analytical rules."
-$HomeContext = Get-AzContext.Tenant.Id
+$HomeContext = (Get-AzContext).Tenant.Id
 
 
 #The following is used in order to configure the necessary context to the new customer subscription.
