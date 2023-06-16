@@ -1,5 +1,5 @@
 #Global Variable initialized
-$pattern = "^H\d+AzureSentinel$"
+$pattern = "^H\d{4,5}AzureSentinel$"
 $FilePath = New-Item -ItemType Directory /home/WorkingDir
 $SentinelSecurityContrib = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Contributor').Id
 $ArcConnected = (Get-AzRoleDefinition -Name 'Azure Connected Machine Resource Administrator').Id
@@ -16,6 +16,7 @@ $DisplayNameL1 = "SOC L1"
 $DisplaynameL2 = "SOC L2"
 $DisplayNameReaders = "SOC Readers"
 $StorageAccountName = Read-Host "Enter the name of the storage account containing the analytical rules."
+$HomeContext = Get-AzContext.Tenant.Id
 
 
 #Sets the context for our script to run in. This is important as it will allow the user to remotely authenti
@@ -218,13 +219,18 @@ function PolicyCreation{
     
         [Parameter(DontShow)]
         [String]
-        $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Select-String -Pattern $pattern)
+        $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Select-String -Pattern $pattern),
+
+        [Parameter(DontShow)]
+        [string]
+        $ActivityName 'AzureActivityLog'
     )
     
     #Grabs our policy Definition for use in the next step. 
     $DefinitionWin = Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Windows servers' }
     $DefinitionLinux = Get-AzPolicyDefinition | Where-Object {$_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Linux servers. See deprecation notice below'}
-    
+    $DefinitionActivity = Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq 'Configure Azure Activity logs to stream to specified Log Analytics workspace'}
+
     $WorkspaceName = (Get-AzOperationalInsightsWorkspace).Name
     
     #begin creation of our new policy
@@ -232,10 +238,12 @@ function PolicyCreation{
     #need to see if the variables being assigned here is really necessary. 
     New-AzPolicyAssignment -Name $WinAssignName -PolicyDefinition $DefinitionWin -PolicyParameterObject @{"logAnalytics"="$WorkspaceName"} -AssignIdentity -Location eastus
     New-AzPolicyAssignment -Name $LinAssignName -PolicyDefinition $DefinitionLinux -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location eastus
+    New-AzPolicyAssignment -Name $ActivityName -PolicyDefinition $DefinitionActivity -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location eastus
     #Now we need to fetch the policy -Id of the above. 
     
     $PolicyAssignWind = (Get-AzPolicyAssignment -Name WindowsOmsInstaller).PolicyAssignmentId
-    $PolicyAssignLinux = (Get-AzPolicyAssignment -Name $LinAssignName).PolicyAssignmentId 
+    $PolicyAssignLinux = (Get-AzPolicyAssignment -Name $LinAssignName).PolicyAssignmentId
+    $PolicyAssignActivity = (Get-AzPolicyAssignment -Name = $ActivityName).PolicyAssignmentId 
     
     start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignWind -Name WindowsOmsRemediation
     Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignLinux -Name LinuxOmsRemediation
@@ -307,20 +315,23 @@ function PolicyCreation{
             [string]
             $SubscriptionId = ((Get-AzContext).Subscription.Id)
 )
-    
+    #Enables Common Security Event logs by pulling the template file we need from github & passing the parameters inline.
     Invoke-WebRequest -Uri $Uri -OutFile $FilePath/NtiretySecurityWinEvents.json
     New-AzResourceGroupDeployment -TemplateFile $FilePath/NtiretySecurityWinEvents.json -WorkspaceName $WorkspaceName -ResourceGroupName $ResourceGroupName -securityCollectionTier Recommended -AsJob
 
     Wait-Job
-
+    
+    #Deploys our other Win & Linux system logs.
     $WinLogSources.ForEach({New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Name $_ -CollectErrors -CollectWarnings -CollectInformation -EventLogName $_})
     $LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Facility $_ -CollectEmergency -CollectAlert -CollectCritical -CollectError -CollectWarning -CollectNotice -EventLogName $_})
-    New-AzOperationalInsightsAzureActivityLogDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Name AzureActivityLog -SubscriptionId $SubscriptionId
+
     if($error -ne $null){
         $error.ForEach({$FunctionToCheck["DataConnectors"] += $_.Exception.Message})
         $error.Clear()
     }
-    
+#The following below is used in order to set our context working directory back to our primary Sentinel tenant. We then reauth to the subscription under this AD user versus our Ntirety Principal User.
+    Set-AzContext $HomeContext
+    Set-AzContext $AzSubscription
     }
 
 
@@ -361,9 +372,8 @@ function DeployAnalyticalRules {
 
     #Can use the raw JSON files in order to deploy the analytical rules the params that are needed are the workspace & potentially the region.
 
-    $AnalyticalRules.ForEach({New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroup -TemplateFile $_ -TemplateParameterObject $TemplateParams -Name $_ -AsJob
+    $AnalyticalRules.ForEach({New-AzResourceGroupDeployment -Name $_ -ResourceGroupName $ResourceGroup -TemplateFile $_ -Workspace $WorkspaceName -AsJob
         Write-Output 'The Analytical Rule Set for $_ Is being deployed once this has completed the next one will deploy'
-    Wait-Job -Name $_
     })
 
 }
