@@ -1,4 +1,5 @@
 #Global Variable initialized
+$DefaultColor = [ConsoleColor]::Cyan
 $pattern = "^H\d{4,5}AzureSentinel$"
 $FilePath = New-Item -ItemType Directory /home/WorkingDir
 $SentinelSecurityContrib = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Contributor').Id
@@ -19,25 +20,28 @@ $StorageAccountName = Read-Host "Enter the name of the storage account containin
 $HomeContext = Get-AzContext.Tenant.Id
 
 
-#Sets the context for our script to run in. This is important as it will allow the user to remotely authenti
-$NewInstance = Read-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for. "
-Set-AzContext -Tenant $NewInstance
-$AzSubscription = (Get-Azcontext).Name.Id
-wait 10
-Set-AzContext -Subscription $AzSubscription
-#Creating the static variables to use for housing errors for the error check portion of the scipt. 
-$FunctionsToCheck = @{}
+#The following is used in order to configure the necessary context to the new customer subscription.
+Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for.
 
-#Used to make sure we don't get any extraneous errors. 
+This can be retrieved from the Azure AD overview page." -Foregroundcolor $DefaultColor
+$NewInstance = Read-Host 
+Set-AzContext -Tenant $NewInstance
+
+#After setting our context to the necessary customer tenant we grab the Subscription ID to use later on for Analytical rule import.
+$AzSubscription = (Get-Azcontext).Name.Id
+
+
+#Creating the static variables to use for housing errors for the error check portion of the scipt. This hashtable will have all of the necessary errors. 
+$FunctionsToCheck = @{}
 $error.Clear()
+
+#Begin the functions 
 function ResourceProviders{
     #The below needs to be populated With the necessary namespaces as well as creating a array with the required resource providers.
     $RequiredProviderCheck =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights','Microsoft.HybridConnectivity','Microsoft.ManagedIdentity','Microsoft.AzureArcData','Microsoft.OperationsManagement','microsoft.insights','Microsoft.HybridCompute','Microsoft.GuestConfiguration','Microsoft.Automanage','Microsoft.MarketplaceNotifications','Microsoft.ManagedServices')
-    #Need to add here the fetching of the necessary files.
     
+    #The following loop will work through the subscription in order to register all of the resource providers we need for our resources. 
     foreach($Provider in $RequiredProviderCheck){
-        #$RequiredProviderCheck
-    
         $ProviderName = (Get-AzResourceProvider -ProviderNamespace $Provider).RegistrationState | Select-Object -First 1
         $ProviderName
         if($ProviderName -match "NotRegistered"){
@@ -45,12 +49,14 @@ function ResourceProviders{
         }
 }
 
-#Catches any errors from this execution. 
+#End of For loop and beginning of error catching.  
 if($error[0]){
     $error.ForEach({$FunctionsToCheck["ResourceProviders"] += $_.Exception.Message})
 }
 $error.Clear()
 }
+
+#Function to create the necessary connection to our main tenant. 
 function LightHouseConnection{
 $SocL1ObjectId = Read-Host "Enter the Principal ID for the SOC L1 group"
 $SocL2ObjectId = Read-Host "Enter the PrincipalId for the SOC L2 Group"
@@ -138,19 +144,21 @@ $MainObject = [ordered]@{
     parameters = $parameters
 }
 
-#Convert the above into a single JSON file that will work for the parameter file
+#Converts the above to a JSON formatted file to be used for the ARM template push. 
 $MainObject | ConvertTo-Json -Depth 5 | Out-File -FilePath $FilePath/TemplateParam.json
 
 Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -OutFile $FilePath/ArmTemplateDeploy.json
     
 New-AzDeployment -TemplateFile $FilePath/ArmTemplateDeploy.json -TemplateParameterFile $FilePath/TemplateParam.json
 
+#Catches all our errors.
 if($error[0]){
 $error.foreach({$FunctionsToCheck["LightHouse"] += $_.Exception.Message})
 $error.Clear()
 }
 }
 
+#End the 
 function DeploySentinel{
 #Once the above has completed we have ensured that the necessary providers for the rest of our task have been completed
 
