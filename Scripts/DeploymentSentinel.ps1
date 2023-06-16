@@ -1,51 +1,72 @@
 #Global Variable initialized
-$pattern = "^\d{5}AzureSentinel$"
-$FIlePath = New-Item -ItemType Directory /home/WorkingDir
-$AzSubscription = (Get-Azcontext).Name.Id
+$DefaultColor = [ConsoleColor]::Cyan
+$pattern = "^H\d{4,5}AzureSentinel$"
+$FilePath = New-Item -ItemType Directory /home/WorkingDir
 $SentinelSecurityContrib = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Contributor').Id
 $ArcConnected = (Get-AzRoleDefinition -Name 'Azure Connected Machine Resource Administrator').Id
 $MonitoringContrib = (Get-AzRoleDefinition -Name 'Monitoring Contributor').Id
 $ResourcePolicyContrib = (Get-AzRoleDefinition -Name 'Resource Policy Contributor').Id
 $ManagedIdContrib = (Get-AzRoleDefinition -Name 'Managed Identity Contributor').Id
 $VirtualMachineContrib = (Get-AzRoleDefinition -Name 'Classic Virtual Machine Contributor').Id
+$SentinelResponder = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Responder').Id
+$LogAnalyticsReader = (Get-AzRoleDefinition -Name 'Log Analytics Reader').Id
 $TagContrib = (Get-AzRoleDefinition -Name 'Tag Contributor').Id
+$SentinelReaderRole = (Get-AzRoleDefinition -Name 'Reader').Id
+$DisplayNameEng = "Security Engineer"
+$DisplayNameL1 = "SOC L1"
+$DisplaynameL2 = "SOC L2"
+$DisplayNameReaders = "SOC Readers"
+$StorageAccountName = Read-Host "Enter the name of the storage account containing the analytical rules."
+$HomeContext = (Get-AzContext).Tenant.Id
 
-$NewInstance = Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for. "
 
+#The following is used in order to configure the necessary context to the new customer subscription.
+Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for.
+
+This can be retrieved from the Azure AD overview page." -Foregroundcolor $DefaultColor
+$NewInstance = Read-Host 
 Set-AzContext -Tenant $NewInstance
-#Creating the static variables to use for housing errors for the error check portion of the scipt. 
 
-Set-AzContext -Subscription $AzSubscription
+Write-Host "Enter in the subscription ID you would like to deploy the solution too. " -Foregroundcolor $DefaultColor
+$NewSub = Read-Host
+
+Set-AzContext -Subscription $NewSub
+
+#After setting our context to the necessary customer tenant we grab the Subscription ID to use later on for Analytical rule import.
+$AzSubscription = (Get-AzContext).Subscription.Id
+
+
+#Creating the static variables to use for housing errors for the error check portion of the scipt. This hashtable will have all of the necessary errors. 
 $FunctionsToCheck = @{}
-
-#Used to make sure we don't get any extraneous errors. 
 $error.Clear()
+
+#Begin the functions 
 function ResourceProviders{
-#The below needs to be populated With the necessary namespaces as well as creating a array with the required resource providers.
-$RequiredProviderCheck =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights','Microsoft.HybridConnectivity')
-#Need to add here the fetching of the necessary files.
-
-#Checks whether or not the necessary namespace is Registered or not and then performs a register if necessary. 
-$RequiredProviderCheck.ForEach({($ProviderName = Get-AzResourceProvider -ProviderNamespace $_).RegistrationState | Select-Object -First 1
-if($ProviderName -contains "NotRegistred"){
-Register-AzResourceProvider -ProviderNamespace $_
+    #The below needs to be populated With the necessary namespaces as well as creating a array with the required resource providers.
+    $RequiredProviderCheck =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights','Microsoft.HybridConnectivity','Microsoft.ManagedIdentity','Microsoft.AzureArcData','Microsoft.OperationsManagement','microsoft.insights','Microsoft.HybridCompute','Microsoft.GuestConfiguration','Microsoft.Automanage','Microsoft.MarketplaceNotifications','Microsoft.ManagedServices')
+    
+    #The following loop will work through the subscription in order to register all of the resource providers we need for our resources. 
+    foreach($Provider in $RequiredProviderCheck){
+        $ProviderName = (Get-AzResourceProvider -ProviderNamespace $Provider).RegistrationState | Select-Object -First 1
+        $ProviderName
+        if($ProviderName -match "NotRegistered"){
+        Register-AzResourceProvider -ProviderNamespace $Provider
+        }
 }
-})
-}
 
-#Catches any errors from this execution. 
+#End of For loop and beginning of error catching.  
 if($error[0]){
     $error.ForEach({$FunctionsToCheck["ResourceProviders"] += $_.Exception.Message})
 }
 $error.Clear()
-$NewInstance = Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for. "
+}
 
-Set-AzContext -Tenant $NewInstance
-
-
+#Function to create the necessary connection to our main tenant. 
 function LightHouseConnection{
-
-$PrincipalId = Read-Host "Enter the Principal ID that will be used in this configuration"
+$SocL1ObjectId = Read-Host "Enter the Principal ID for the SOC L1 group"
+$SocL2ObjectId = Read-Host "Enter the PrincipalId for the SOC L2 Group"
+$SocEngObjectId = Read-Host "Enter the Principal ID for the SOC Eng group"
+$SentinelReaders = Read-Host "Enter the Principal ID for the Sentinel Readers Group"
 $TenantId = Read-Host "Enter the Tenant ID for the home tenant"
 #Creates our hashtable to utilize for the parameters for the JSON file.
 $parameters = [ordered]@{
@@ -53,35 +74,71 @@ $parameters = [ordered]@{
         value = "Ntirety Lighthouse SOC"
     }
     managedByTenantId = @{
-        value = $TenatId
+        value = $TenantId
     }
     authorizations =@{
         value =@(
             @{
-                principalId = $PrincipalId
+                principalId = $SocEngObjectId
                 roleDefinitionId = $SentinelSecurityContrib
-                principalIdDisplayName = "Security Engineer"
+                principalIdDisplayName = "$DisplayNameEng"
             }
             @{
-                principalId = $PrincipalId
+                principalId = $SocEngObjectId
                 roleDefinitionId = $ArcConnected
-                principalIdDisplayName = "Security Engineer"
+                principalIdDisplayName = "$DisplayNameEng"
             }
             @{
-                principalId = $PrincipalId
+                principalId = $SocEngObjectId
                 roleDefinitionId = $MonitoringContrib
-                principalIdDisplayName = "Security Engineer"
+                principalIdDisplayName = "$DisplayNameEng"
             }
             @{
-                principalId = $PrincipalId
+                principalId = $SocEngObjectId
                 roleDefinitionId = $TagContrib
-                principalIdDisplayName = "Security Engineer"
+                principalIdDisplayName = "$DisplayNameEng"
             }
             @{
-                principalId = $PrincipalId
+                principalId = $SocEngObjectId
                 roleDefinitionId = $VirtualMachineContrib
-                principalIdDisplayName = "Security Engineer"
+                principalIdDisplayName = "$DisplayNameEng"
             }
+            @{
+                principalId = $SocEngObjectId
+                roleDefinitionId = $ResourcePolicyContrib
+                principalIdDisplayName = "$DisplayNameEng"
+            }
+            @{
+                principalId = $SocEngObjectId
+                roleDefinitionId = $ManagedIdContrib
+                principalIdDisplayName = "$DisplayNameEng"
+            }
+            @{
+                principalId = $SocL1ObjectId
+                roleDefinitionId = $SentinelResponder
+                principalIdDisplayName = $DisplayNameL1
+            }
+            @{
+                principalId = $SocL2ObjectId
+                roleDefinitionId = $SentinelResponder
+                principalIdDisplayName = $DisplaynameL2
+            }
+            @{
+                principalId = $SocL1ObjectId
+                roleDefinitionId = $LogAnalyticsReader
+                principalIdDisplayName = $DisplayNameL1
+            }
+            @{
+                principalId = $SocL2ObjectId
+                roleDefinitionId = $LogAnalyticsReader
+                principalIdDisplayName = $DisplaynameL2
+            }
+            @{
+                principalId = $SentinelReaders
+                roleDefinitionId = $SentinelReaderRole
+                principalIdDisplayName = $DisplayNameReaders
+            }
+            
         )
     }
 }
@@ -92,19 +149,21 @@ $MainObject = [ordered]@{
     parameters = $parameters
 }
 
-#Convert the above into a single JSON file that will work for the parameter file
-$MainObject | ConvertTo-Json -Depth 5 | Out-File -FilePath /$FIlePath/TemplateParam.json
+#Converts the above to a JSON formatted file to be used for the ARM template push. 
+$MainObject | ConvertTo-Json -Depth 5 | Out-File -FilePath $FilePath/TemplateParam.json
 
-Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -OutFile ArmTemaplateDeploy.json
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -OutFile $FilePath/ArmTemplateDeploy.json
     
 New-AzDeployment -TemplateFile $FilePath/ArmTemplateDeploy.json -TemplateParameterFile $FilePath/TemplateParam.json
 
+#Catches all our errors.
 if($error[0]){
 $error.foreach({$FunctionsToCheck["LightHouse"] += $_.Exception.Message})
 $error.Clear()
 }
 }
 
+#End the 
 function DeploySentinel{
 #Once the above has completed we have ensured that the necessary providers for the rest of our task have been completed
 
@@ -112,202 +171,181 @@ function DeploySentinel{
 [CmdletBinding()]
 param (
     [Parameter(Mandatory=$true, HelpMessage="Please enter the name of the customer using the format H#AzureSentinel")]
-    [ValidatePattern('$pattern')]
+    [ValidatePattern('^H\d+AzureSentinel$')]
     [string]
     $CustName,
 
     [Parameter(Mandatory=$true, HelpMessage="Please enter the location that is closet to this customer. Using the foramt eastus,westus etc")]
-    [ValidatePattern('^([a-z]{2}-[a-z]{2}-\d{1})$')]
+    [ValidatePattern('^([a-z0-9]+)$')]
     [string]
     $location,
 
     [Parameter(DontShow)]
-    [hashtable]
-    $TemplateParameters =@{
-    workspaceName = $CustName
-    location = $location
-    sku = PerGB2018
-    dataRetention = 90
-}
+    [Hashtable]
+    $Tag = @{
+        "Production" = "false"
+    }
 )
 
-New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $TemplateParameters -ResourceGroupName $CustName -AsJob[PSCustomObject]@{
-New-AzResourceGroupDeployment -Name $CustName -TemplateParameterObject $TemplateParameters -ResourceGroupName $CustName -AsJ[PSCustomObject]@{
-    Name = SentinelResourceDeploy
-}
+#Deploys the resource group which will house the Sentinel resources. 
+New-AzResourceGroup -Name $CustName -Location $location
+
+#using the match regex we are able to ensure we grab only the resource group that we created in the previous step of variable init. 
+$ResourceGroupName = (Get-AzResourceGroup).ResourceGroupName
+
+
+New-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Name $CustName -Location $location -Tag $Tag -Sku pergb2018
+
+
+#The following pulls down the ARM template which is used by the SOC and then utilizes this connection in order to allow for the necessary changing of the workspace name. We grab the location dynamically when the script runs in this case. 
+#Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/mathewOrtiz/MsspSentinel/main/ARM/NtiretyMsspAzureResources.json' -OutFile $FilePath/NtiretyMsspAzureResources.json
+#$ArmContent = Get-Content -Raw -Path $FilePath/NtiretyMsspAzureResources.json | ConvertFrom-Json -AsHashtable
+#$ArmContent.parameters.workspaceName.defaultValue = $ResourceGroupName
+#$CompleteTemplate = $ArmContent | ConvertTo-Json -Depth 10
+#$CompleteTemplate |Set-Content -Path $FilePath/NtiretyMsspAzureResources.json
+
+#Deploy Sentinel
+New-AzSentinelOnboardingState -ResourceGroupName $CustName -WorkspaceName $CustName -Name "default"
+
+#Exist to catch errors associated with this run
 if($error[0]){
-$FunctionsToCheck["DeploySentinel"] = null
-$error.ForEach({$FunctionsToCheck["DeploySentinel"] += $_.Exception.Message})
-
-$error.Clear()
-#We have now deployed the LogAnalytics Workspace & Sentinel Instance
-   }
-
-#We have now deployed the LogAnalytics Workspace & Sentinel Instance
+    $error.ForEach({$FunctionsToCheck["DeploySentinel"] += $_.Exception.Message})
+   $error.Clear()
     }
 }
+
 function PolicyCreation{
-#Creating the necessary policies
-#$Subscription = (Get-AzContext).Subscription.Id
-#$ResourceGroup = Get-AzResourceGroup | Select-String -Pattern $pattern
-$WorkspaceName = Get-AzOperationalInsightsWorkspace | Select-String $pattern
 
-$PolicyParam = @{
-    "logAnalytics" = $WorkspaceName
-}
-
-
-#Grabs our policy Definition for use in the next step. 
-$DefinitionWin = Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Windows servers' }
-$DefinitionLinux = Get-AzPolicyDefinition | Where-Object {$_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Linux servers.'}
-
-#begin creation of our new policy
-
-#need to see if the variables being assigned here is really necessary. 
-New-AzPolicyAssignment -PolicyDefinition $DefinitionWin -PolicyParameterObject $PolicyParam -Name WindowsOmsInstaller -AssignIdentity -IdentityType SystemAssigned
-New-AzPolicyAssignment -PolicyDefinition $DefinitionLinux -PolicyParameterObject $PolicyParam -Name LinuxOMsInstaller -AssignIdentity -IdentityType SystemAssigned
-#Now we need to fetch the policy -Id of the above. 
-
-Start-AzPolicyRemediation -PolicyAssignmentId $DefinitionWin.PolicyDefinitionId -Name WindowsOmsRemediation
-Start-AzPolicyRemediation -PolicyAssignmentId $DefinitionLinux.PolicyDefinitionId -Name LinuxOmsRemediation
-
-if($error -ne $null){
-$error.ForEach({$FunctionsToCheck["PolicyCreation"] += $_.Exception.Message})
-$error.Clear()
-}
-
-
-}
-
-#Sets our Table Retention 
-function RetentionSet{
     [CmdletBinding()]
     param (
         [Parameter(DontShow)]
         [String]
-        $WorkspaceName = (Get-AzOperationalInsightsWorkspace | Select-String $pattern),
-
-        [Parameter( DontShow)]
-        [String]
-        $ResourceGroup = (Get-AzResourceGroup | Select-String -Pattern $pattern),
-
-        [Parameter(DontShow)]
-        [array]
-        $tables = @((Get-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName))
-    )
-#Before beginning iteration through the table we query to ensure that our Job has been completed to deploy our Sentinel resources. If this hasn't been completed then we wait for it to finish.
-$SentinelDeployStatus = (Get-Job -Name SentinelResourceDeploy).State
-
-if($SentinelDeployStatus -eq "Running"){
-Wait-Job -Name SentinelResourceDeploy
-
-Write-Output "The Sentinel Resources are still being deployed please wait for this to be completed."\
-#The below will re-run the sentinel deploy script in order to ensure that the necessary resources are created to be modified. 
-}elseif($SentinelDeployStatus -eq "Failed"){
-DeploySentinel
-
-Wait-Job -Name SentinelResourceDeploy
-
-Write-Output "The initial deployment of the Sentinel Resource has failed please wait while this is attempted again."
-}else {
-    $tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ })
-}
-
-$tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ })
-
-if($error -ne $null){
-    $error.ForEach({$FunctionsToCheck["RetentionSet"] += $_.Exception.Message})
-    $error.Clear
-}
-
-}
-
-function DataConnectors{
-    [CmdletBinding()]
-    param (
-        [Parameter(DontShow)]
-        [string]
-        $ResourceGroup = (Get-AzResourceGroup | Select-String),
-
-        [Parameter(DontShow)]
-        [string]
-        $WorkspaceName = (Get-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName),
-
-        [Parameter(DontShow)]
-        [array]
-        $WinLogSources = @('System','Application'),
-
-        [Parameter(DontShow)]
-        [array]
-        $LinuxLogSources = @('Auth','authpriv','syslog','cron'),
-
-
-        #Defines our parameters for our arm temaple
-        [Parameter(DontShow)]
-        [hastable]
-        $ParametersForTemplate = @{
-            workspaceName =@{
-                type = 'string'
-                defaultvalue = $WorkspaceName
-            }
-            dataSourceName = @{
-                type = 'string'
-                defaultvalue = 'SecurityInsightsSecurityEventCollectionConfiguration'
-            }
-        },
-        
-        #Defines our resources for our Arm template
-        [Parameter(DontShow)]
-        [hastable]
-        $ResoucesTemplate = @(
-            @{
-                "type" = "Microsoft.OperationalInsights/workspaces/dataSources"
-                "apiVersion" = "2020-08-01"
-                "name" = "[concat(parameters('workspaceName'), '/', parameters('dataSourceName'))]"
-                "kind" = 'dataSourceName'
-                    "properties" = @{
-                        "tier" = 'Recommended'
-                    }
-            }
-        ),
-
-        #Define the ARM template
-        [Parameter(DontShow)]
-        [hastable]
-        $Template = @{
-            '$schema' = "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#"
-            contentVersion = '1.0.0.0'
-            parameters = $ParametersForTemplate
-            resource = $ResoucesTemplate
-        }
-        
-  )
+        $WinAssignName = 'WindowsOms',
     
-    #Creates our necessary log sources for the Oms agent log collection. This will need to be updated if we add in a new method for the ARC agent. 
-    $WinLogSources.ForEach({New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -EventLogName $WinLogSources})
-    $LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -EventLogName $LinuxLogSources})
+        [Parameter(DontShow)]
+        [String]
+        $LinAssignName = 'LinuxOms',
+    
+        [Parameter]
+        [String]
+        $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Select-String -Pattern $pattern),
+    
+        [Parameter(DontShow)]
+        [String]
+        $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Select-String -Pattern $pattern),
 
-#Deploy the Bicep Template
+        [Parameter(DontShow)]
+        [string]
+        $ActivityName = 'AzureActivityLog'
+    )
+    
+    #Grabs our policy Definition for use in the next step. 
+    $DefinitionWin = Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Windows servers' }
+    $DefinitionLinux = Get-AzPolicyDefinition | Where-Object {$_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Linux servers. See deprecation notice below'}
+    $DefinitionActivity = Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq 'Configure Azure Activity logs to stream to specified Log Analytics workspace'}
 
-#Convert the defined template to proper JSON 
-
-
-$TemplateToJson = Convert-ToJson $Template -Depth 100
-
-$TemplateToJson | Out-File /home/workingDir/WindowsLogging.json
-
-New-AzResourceGroupDeployment -TemplateFile WindowsLogging.json -Name WinLog
-
-Wait-Job -Name WinLog
-
-if($error -ne $null){
-    $error.ForEach({$FunctionToCheck["DataConnectors"] += $_.Exception.Message})
+    $WorkspaceName = (Get-AzOperationalInsightsWorkspace).Name
+    
+    #begin creation of our new policy
+    
+    #need to see if the variables being assigned here is really necessary. 
+    New-AzPolicyAssignment -Name $WinAssignName -PolicyDefinition $DefinitionWin -PolicyParameterObject @{"logAnalytics"="$WorkspaceName"} -AssignIdentity -Location eastus
+    New-AzPolicyAssignment -Name $LinAssignName -PolicyDefinition $DefinitionLinux -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location eastus
+    New-AzPolicyAssignment -Name $ActivityName -PolicyDefinition $DefinitionActivity -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location eastus
+    #Now we need to fetch the policy -Id of the above. 
+    
+    $PolicyAssignWind = (Get-AzPolicyAssignment -Name WindowsOmsInstaller).PolicyAssignmentId
+    $PolicyAssignLinux = (Get-AzPolicyAssignment -Name $LinAssignName).PolicyAssignmentId
+    $PolicyAssignActivity = (Get-AzPolicyAssignment -Name = $ActivityName).PolicyAssignmentId 
+    
+    start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignWind -Name WindowsOmsRemediation
+    Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignLinux -Name LinuxOmsRemediation
+    
+    if($error -ne $null){
+    $error.ForEach({$FunctionsToCheck["PolicyCreation"] += $_.Exception.Message})
     $error.Clear()
-}
+    }
+    
+    }
+    
+    #Sets our Table Retention 
+    function RetentionSet{
+        [CmdletBinding()]
+        param (
+            [Parameter(DontShow)]
+            [String]
+            $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Select-String $pattern),
+    
+            [Parameter( DontShow)]
+            [String]
+            $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Select-String -Pattern $pattern),
+    
+            [Parameter(DontShow)]
+            [array]
+            $tables = @((Get-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName))
+    
+        )
+    #Before beginning iteration through the table we query to ensure that our Job has been completed to deploy our Sentinel resources. If this hasn't been completed then we wait for it to finish.
+    
+    #The below will re-run the sentinel deploy script in order to ensure that the necessary resources are created to be modified. 
+    
+    $tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ -RetentionInDays 90 -TotalRetentionInDays 365 -AsJob}
 
-}
+    )
+    
+    if($error -ne $null){
+        $error.ForEach({$FunctionsToCheck["RetentionSet"] += $_.Exception.Message})
+        $error.Clear
+    }
+    
+    }
+    
+    function DataConnectors{
+        [CmdletBinding()]
+        param (
+            [Parameter(DontShow)]
+            [string]
+            $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Select-String -Pattern $pattern),
+    
+            [Parameter(DontShow)]
+            [string]
+            $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Select-String -Pattern $pattern),
+    
+            [Parameter(DontShow)]
+            [array]
+            $WinLogSources = @("System", "Application"),
+    
+            [Parameter(DontShow)]
+            [array]
+            $LinuxLogSources = @('Auth','authpriv','syslog','cron'),
 
-New-AzResourceGroupDeployment -TemplateFile -TemplateParameterObject 
+            [Parameter(DontShow)]
+            [string]
+            $Uri = "https://raw.githubusercontent.com/mathewOrtiz/MsspSentinel/FinalTesting/ARM/NtiretySecurityWinEvents.json",
+
+            [Parameter(DontShow)]
+            [string]
+            $SubscriptionId = ((Get-AzContext).Subscription.Id)
+)
+    #Enables Common Security Event logs by pulling the template file we need from github & passing the parameters inline.
+    Invoke-WebRequest -Uri $Uri -OutFile $FilePath/NtiretySecurityWinEvents.json
+    New-AzResourceGroupDeployment -TemplateFile $FilePath/NtiretySecurityWinEvents.json -WorkspaceName $WorkspaceName -ResourceGroupName $ResourceGroup -securityCollectionTier Recommended -AsJob
+
+    
+    
+    #Deploys our other Win & Linux system logs.
+    $WinLogSources.ForEach({New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Name $_ -CollectErrors -CollectWarnings -CollectInformation -EventLogName $_})
+    $LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -Name $_ -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Facility $_ -CollectEmergency -CollectAlert -CollectCritical -CollectError -CollectWarning -CollectNotice})
+
+    if($error -ne $null){
+        $error.ForEach({$FunctionToCheck["DataConnectors"] += $_.Exception.Message})
+        $error.Clear()
+    }
+#The following below is used in order to set our context working directory back to our primary Sentinel tenant. We then reauth to the subscription under this AD user versus our Ntirety Principal User.
+    Set-AzContext -Tenant $HomeContext
+    Set-AzContext -Subscription $AzSubscription
+    }
+
 
 
 #This function will need to be configured in order to get us our output that will 
@@ -319,11 +357,7 @@ function DeployAnalyticalRules {
     #In the below parameters need to ensure that we add a pattern matching feature. This will ensure that we aren't relying on the users input.
         [Parameter(DontShow)]
         [hashtable]
-        $StorageAccAuth = (New-AzStorageAccountContext -StorageAccountName $StorageAccount ),
-
-        [Parameter(DontShow)]
-        [String]
-        $StorageAccount = ((Get-AzStorageAccount).StorageAccountName),
+        $StorageAccAuth = (New-AzStorageContext -StorageAccountName $StorageAccountName),
 
         [Parameter(DontShow)]
         [String]
@@ -331,7 +365,7 @@ function DeployAnalyticalRules {
 
         [Parameter(DontShow)]
         [array]
-        $AnalyticalRules = ((Get-AzStorageBlob -Context $StorageAccAuth).Name),
+        $AnalyticalRules = @((Get-AzStorageBlob -Context $StorageAccAuth).Name),
 
         [Parameter(DontShow)]
         [String]
@@ -344,55 +378,15 @@ function DeployAnalyticalRules {
         }
 
     )
-    #Need to in this step iterate over the array that we created while also deploying ARM templates. Need to ensure that this is done in the correct manner.
+    #The following will need download all of the files to our working directory. 
+    $AnalyticalRules.foreach({Get-AzStorageBlobContent -Context -Blob $_ -Container $ContainerName -Destination $FilePath})
+
 
     #Can use the raw JSON files in order to deploy the analytical rules the params that are needed are the workspace & potentially the region.
 
-    $AnalyticalRules.ForEach({New-AzResourceGroupDeployment -ResourceGroupName $ResourceGroup -TemplateFile $_ -TemplateParameterObject $TemplateParams -Name $_ -AsJob
+    $AnalyticalRules.ForEach({New-AzResourceGroupDeployment -Name $_ -ResourceGroupName $ResourceGroup -TemplateFile $_ -Workspace $WorkspaceName -AsJob
         Write-Output 'The Analytical Rule Set for $_ Is being deployed once this has completed the next one will deploy'
-    Wait-Job -Name $_
     })
-
-}
-
-#Sets our Table Retention 
-function RetentionSet{
-    [CmdletBinding()]
-    param (
-        [Parameter(DontShow)]
-        [String]
-        $WorkspaceName = (Get-AzOperationalInsightsWorkspace | Select-String $pattern),
-
-        [Parameter( DontShow)]
-        [String]
-        $ResourceGroup = (Get-AzResourceGroup | Select-String -Pattern $pattern),
-
-        [Parameter(DontShow)]
-        [array]
-        $tables = @((Get-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName))
-    )
-#Before beginning iteration through the table we query to ensure that our Job has been completed to deploy our Sentinel resources. If this hasn't been completed then we wait for it to finish.
-$SentinelDeployStatus = (Get-Job -Name SentinelResourceDeploy).State
-
-if($SentinelDeployStatus -eq "Running"){
-Wait-Job -Name SentinelResourceDeploy
-
-Write-Output "The Sentinel Resources are still being deployed please wait for this to be completed."
-}elseif($SentinelDeployStatus -eq "Failed"){
-DeploySentinel
-
-Wait-Job -Name SentinelResourceDeploy
-
-Write-Output "The initial deployment of the Sentinel Resource has failed please wait while this is attempted again."
-}else {
-    $tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ })
-}
-
-$tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ })
-    if($error -ne $null){
-        $error.ForEach({$FunctionsToCheck["DeployAnalyticalRules"] += $_.Exception.Message})
-        $error.Clear()
-    }
 
 }
 
@@ -401,3 +395,11 @@ function ErrorCheck{
 
     #needs menu option for what actions to be taken. Include all function calls. 
 }
+
+ResourceProviders
+LightHouseConnection
+DeploySentinel
+RetentionSet
+DataConnectors
+DeployAnalyticalRules
+ErrorCheck
