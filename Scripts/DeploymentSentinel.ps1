@@ -330,7 +330,7 @@ function PolicyCreation{
 )
     #Enables Common Security Event logs by pulling the template file we need from github & passing the parameters inline.
     Invoke-WebRequest -Uri $Uri -OutFile $FilePath/NtiretySecurityWinEvents.json
-    New-AzResourceGroupDeployment -TemplateFile $FilePath/NtiretySecurityWinEvents.json -WorkspaceName $WorkspaceName -ResourceGroupName $ResourceGroupName -securityCollectionTier Recommended -AsJob
+    New-AzResourceGroupDeployment -TemplateFile $FilePath/NtiretySecurityWinEvents.json -WorkspaceName $WorkspaceName -ResourceGroupName $ResourceGroup -securityCollectionTier Recommended -AsJob
 
     Wait-Job
     
