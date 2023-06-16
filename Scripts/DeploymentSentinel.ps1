@@ -1,6 +1,6 @@
 #Global Variable initialized
 $DefaultColor = [ConsoleColor]::Cyan
-$pattern = "^H\d{4,5}AzureSentinel$"
+$pattern = "^H\d{4,5,6}AzureSentinel$"
 $FilePath = New-Item -ItemType Directory /home/WorkingDir
 $SentinelSecurityContrib = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Contributor').Id
 $ArcConnected = (Get-AzRoleDefinition -Name 'Azure Connected Machine Resource Administrator').Id
@@ -50,15 +50,15 @@ function ResourceProviders{
         $ProviderName = (Get-AzResourceProvider -ProviderNamespace $Provider).RegistrationState | Select-Object -First 1
         $ProviderName
         if($ProviderName -match "NotRegistered"){
-        Register-AzResourceProvider -ProviderNamespace $Provider
+            Register-AzResourceProvider -ProviderNamespace $Provider
         }
-}
+    }
 
-#End of For loop and beginning of error catching.  
-if($error[0]){
-    $error.ForEach({$FunctionsToCheck["ResourceProviders"] += $_.Exception.Message})
-}
-$error.Clear()
+    #End of For loop and beginning of error catching.  
+    if($error[0]){
+        $error.ForEach({$FunctionsToCheck["ResourceProviders"] += $_.Exception.Message})
+    }
+    $error.Clear()
 }
 
 #Function to create the necessary connection to our main tenant. 
@@ -171,7 +171,7 @@ function DeploySentinel{
 [CmdletBinding()]
 param (
     [Parameter(Mandatory=$true, HelpMessage="Please enter the name of the customer using the format H#AzureSentinel")]
-    [ValidatePattern('^H\d+AzureSentinel$')]
+    [ValidatePattern('^H\d{4,5,6}AzureSentinel$')]
     [string]
     $CustName,
 
@@ -396,10 +396,147 @@ function ErrorCheck{
     #needs menu option for what actions to be taken. Include all function calls. 
 }
 
-ResourceProviders
-LightHouseConnection
-DeploySentinel
-RetentionSet
-DataConnectors
-DeployAnalyticalRules
-ErrorCheck
+function mainMenu {
+    $mainMenu = 'X'
+    while($mainMenu -notin 'q', 'Q'){
+        Clear-Host
+        Write-Host "`n`t`t Sentinel Deployment Script`n"
+        Write-Host -ForegroundColor Cyan "Main Menu"
+        Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "1"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
+            Write-Host -ForegroundColor DarkCyan " New Build"
+        Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "2"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
+            Write-Host -ForegroundColor DarkCyan " Finish Existing Build"
+        $mainMenu = Read-Host "`nSelection (q to quit)"
+        # Launch submenu1
+        if($mainMenu -eq 1){
+            newBuild
+        }
+        # Launch submenu2
+        if($mainMenu -eq 2){
+            existingBuild
+        }
+    }
+}
+
+function newBuild {
+    $subMenu1 = 'X'
+    while($subMenu1 -notin 'q', 'Q', 'n', 'N'){
+        Clear-Host
+        Write-Host "`n`t`t New Build`n"
+        #Write-Host -ForegroundColor Cyan "Deploy Full Sentinel Build"
+        #Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "1"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
+        Write-Host -ForegroundColor DarkCyan "Type YES to continue with new build (case-sensitive)"
+
+        $subMenu1 = Read-Host "`nSelection (q to return to main menu)"
+
+        # Option 1
+        if($subMenu1 -ceq 'YES'){
+			Clear-Host
+            Write-Host "`nDeploying Sentinel Build..."
+			#ResourceProviders
+			#LightHouseConnection
+			#DeploySentinel
+			#RetentionSet
+			#DataConnectors
+			#DeployAnalyticalRules
+			#ErrorCheck
+            # Pause and wait for input before going back to the menu
+            Write-Host -ForegroundColor DarkCyan "`nScript execution complete!"
+            Write-Host "`nPress any key to return to the main menu"
+            [void][System.Console]::ReadKey($true)
+			mainMenu
+        }
+    }
+}
+
+function existingBuild {
+    $subMenu2 = 'X'
+    while($subMenu2 -notin 'q', 'Q'){
+        Clear-Host
+        Write-Host "`n`t`t Finish Exisiting Build`n"
+        Write-Host -ForegroundColor Cyan "Deploy Build Components"
+        Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "1"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
+            Write-Host -ForegroundColor DarkCyan " Register Resource Providers"
+        Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "2"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
+            Write-Host -ForegroundColor DarkCyan " Create Lighthouse Connection"
+		Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "3"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
+            Write-Host -ForegroundColor DarkCyan " Deploy Sentinel Workspace"
+		Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "4"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
+            Write-Host -ForegroundColor DarkCyan " Set Table Retention"
+		Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "5"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
+            Write-Host -ForegroundColor DarkCyan " Deploy Data Connectors"
+		Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "6"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
+            Write-Host -ForegroundColor DarkCyan " Deploy Analytical Rules"
+		
+        $subMenu2 = Read-Host "`nSelection (q to return to main menu)"
+
+        # Option 1
+        if($subMenu2 -eq 1){
+			Clear-Host
+			Write-Host "`nRegistering resource providers..."
+            #ResourceProviders
+			#ErrorCheck
+            # Pause and wait for input before going back to the menu
+            Write-Host -ForegroundColor DarkCyan "`nScript execution complete!"
+            Write-Host "`nPress any key to return to the previous menu"
+            [void][System.Console]::ReadKey($true)
+        }
+        # Option 2
+        if($subMenu2 -eq 2){
+			Clear-Host
+			Write-Host "`nCreating Lighthouse connection..."
+            #LightHouseConnection
+			#ErrorCheck
+            # Pause and wait for input before going back to the menu
+            Write-Host -ForegroundColor DarkCyan "`nScript execution complete!"
+            Write-Host "`nPress any key to return to the previous menu"
+            [void][System.Console]::ReadKey($true)
+        }
+		# Option 2
+        if($subMenu2 -eq 3){
+			Clear-Host
+			Write-Host "`nDeploying Sentinel workspace..."
+            #DeploySentinel
+			#ErrorCheck
+            # Pause and wait for input before going back to the menu
+            Write-Host -ForegroundColor DarkCyan "`nScript execution complete!"
+            Write-Host "`nPress any key to return to the previous menu"
+            [void][System.Console]::ReadKey($true)
+        }
+		# Option 2
+        if($subMenu2 -eq 4){
+			Clear-Host
+			Write-Host "`nSetting table retention..."
+            #RetentionSet
+			#ErrorCheck
+            # Pause and wait for input before going back to the menu
+            Write-Host -ForegroundColor DarkCyan "`nScript execution complete!"
+            Write-Host "`nPress any key to return to the previous menu"
+            [void][System.Console]::ReadKey($true)
+        }
+		# Option 2
+        if($subMenu2 -eq 5){
+			Clear-Host
+			Write-Host "`nDeploying data connectors..."
+            #DataConnectors
+			#ErrorCheck
+            # Pause and wait for input before going back to the menu
+            Write-Host -ForegroundColor DarkCyan "`nScript execution complete!"
+            Write-Host "`nPress any key to return to the previous menu"
+            [void][System.Console]::ReadKey($true)
+        }
+		# Option 2
+        if($subMenu2 -eq 6){
+			Clear-Host
+			Write-Host "`nDeploying analytical rules..."
+            #DeployAnalyticalRules
+			#ErrorCheck
+            # Pause and wait for input before going back to the menu
+            Write-Host -ForegroundColor DarkCyan "`nScript execution complete!"
+            Write-Host "`nPress any key to return to the previous menu"
+            [void][System.Console]::ReadKey($true)
+        }
+    }
+}
+
+mainMenu
