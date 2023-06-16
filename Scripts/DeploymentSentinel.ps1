@@ -289,8 +289,8 @@ function PolicyCreation{
     
     #The below will re-run the sentinel deploy script in order to ensure that the necessary resources are created to be modified. 
     
-    $tables.ForEach({Start-Job -Name TableUpdate {Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_}
-    
+    $tables.ForEach({Start-Job -Name TableUpdate {Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ -RetentionInDays 90 -TotalRetentionInDays 365}
+
     }
     )
     
@@ -336,7 +336,7 @@ function PolicyCreation{
     
     #Deploys our other Win & Linux system logs.
     $WinLogSources.ForEach({New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Name $_ -CollectErrors -CollectWarnings -CollectInformation -EventLogName $_})
-    $LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Facility $_ -CollectEmergency -CollectAlert -CollectCritical -CollectError -CollectWarning -CollectNotice -EventLogName $_})
+    $LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -Name $_ -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Facility $_ -CollectEmergency -CollectAlert -CollectCritical -CollectError -CollectWarning -CollectNotice})
 
     if($error -ne $null){
         $error.ForEach({$FunctionToCheck["DataConnectors"] += $_.Exception.Message})
