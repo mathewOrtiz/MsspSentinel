@@ -289,9 +289,8 @@ function PolicyCreation{
     
     #The below will re-run the sentinel deploy script in order to ensure that the necessary resources are created to be modified. 
     
-    $tables.ForEach({Start-Job -Name TableUpdate {Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ -RetentionInDays 90 -TotalRetentionInDays 365}
+    $tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ -RetentionInDays 90 -TotalRetentionInDays 365 -AsJob}
 
-    }
     )
     
     if($error -ne $null){
@@ -332,7 +331,7 @@ function PolicyCreation{
     Invoke-WebRequest -Uri $Uri -OutFile $FilePath/NtiretySecurityWinEvents.json
     New-AzResourceGroupDeployment -TemplateFile $FilePath/NtiretySecurityWinEvents.json -WorkspaceName $WorkspaceName -ResourceGroupName $ResourceGroup -securityCollectionTier Recommended -AsJob
 
-    Wait-Job
+    
     
     #Deploys our other Win & Linux system logs.
     $WinLogSources.ForEach({New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Name $_ -CollectErrors -CollectWarnings -CollectInformation -EventLogName $_})
