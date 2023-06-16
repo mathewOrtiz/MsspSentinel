@@ -27,6 +27,11 @@ This can be retrieved from the Azure AD overview page." -Foregroundcolor $Defaul
 $NewInstance = Read-Host 
 Set-AzContext -Tenant $NewInstance
 
+Write-Host "Enter in the subscription ID you would like to deploy the solution too. " -Foregroundcolor $DefaultColor
+$NewSub = Read-Host
+
+Set-AzContext -Subscription $NewSub
+
 #After setting our context to the necessary customer tenant we grab the Subscription ID to use later on for Analytical rule import.
 $AzSubscription = (Get-Azcontext).Name.Id
 
