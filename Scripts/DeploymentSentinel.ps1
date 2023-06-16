@@ -194,7 +194,7 @@ New-AzResourceGroup -Name $CustName -Location $location
 $ResourceGroupName = (Get-AzResourceGroup).ResourceGroupName
 
 
-New-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -WorkspaceName $CustName -Location $location -Tag $Tag -Sku pergb2018
+New-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Name $CustName -Location $location -Tag $Tag -Sku pergb2018
 
 
 #The following pulls down the ARM template which is used by the SOC and then utilizes this connection in order to allow for the necessary changing of the workspace name. We grab the location dynamically when the script runs in this case. 
