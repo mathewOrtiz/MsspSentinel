@@ -177,8 +177,8 @@ function DeploySentinel{
     #in the below lines we setup our variables which will be used later. We enforce the checking by using a dynamic regex check
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory=$true, HelpMessage="Please enter the name of the customer using the format H#AzureSentinel")]
-        [ValidatePattern('^H\d+AzureSentinel$')]
+        [Parameter(Mandatory=$true, HelpMessage="Please enter the name of the customer using the format H#")]
+        [ValidatePattern('^H\d+$')]
         [string]
         $CustName,
 
@@ -194,6 +194,7 @@ function DeploySentinel{
         }
     )
 
+    $CustName += "AzureSentinel"
     #Deploys the resource group which will house the Sentinel resources. 
     New-AzResourceGroup -Name $CustName -Location $location
 
