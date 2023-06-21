@@ -1,7 +1,7 @@
 #Global Variable initialized
 $DefaultColor = [ConsoleColor]::Cyan
 $pattern = "^H\d+AzureSentinel$"
-$RandNum = Get-RandNum -Maximum 100
+$RandNum = Get-Random -Maximum 100
 $BaseName = "Sentinel"
 $DirectoryName = $BaseName += $RandNum
 $FilePath = New-Item -ItemType Directory /home/$DirectoryName
@@ -436,13 +436,13 @@ function newBuild {
         if($subMenu1 -ceq 'YES'){
 			Clear-Host
             Write-Host "`nDeploying Sentinel Build..."
-			#ResourceProviders
-			#LightHouseConnection
-			#DeploySentinel
-			#RetentionSet
-			#DataConnectors
-			#DeployAnalyticalRules
-			#ErrorCheck
+			ResourceProviders
+			LightHouseConnection
+			DeploySentinel
+			RetentionSet
+			DataConnectors
+			DeployAnalyticalRules
+			ErrorCheck
             # Pause and wait for input before going back to the menu
             Write-Host -ForegroundColor DarkCyan "`nScript execution complete!"
             Write-Host "`nPress any key to return to the main menu"
