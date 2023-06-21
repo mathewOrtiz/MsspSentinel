@@ -1,7 +1,10 @@
 #Global Variable initialized
 $DefaultColor = [ConsoleColor]::Cyan
-$pattern = "^H\d{4,5,6}AzureSentinel$"
-$FilePath = New-Item -ItemType Directory /home/WorkingDir
+$pattern = "^H\d+AzureSentinel$"
+$RandNum = Get-RandNum -Maximum 100
+$BaseName = "Sentinel"
+$DirectoryName = $BaseName += $RandNum
+$FilePath = New-Item -ItemType Directory /home/$DirectoryName
 $SentinelSecurityContrib = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Contributor').Id
 $ArcConnected = (Get-AzRoleDefinition -Name 'Azure Connected Machine Resource Administrator').Id
 $MonitoringContrib = (Get-AzRoleDefinition -Name 'Monitoring Contributor').Id
@@ -171,7 +174,7 @@ function DeploySentinel{
 [CmdletBinding()]
 param (
     [Parameter(Mandatory=$true, HelpMessage="Please enter the name of the customer using the format H#AzureSentinel")]
-    [ValidatePattern('^H\d{4,5,6}AzureSentinel$')]
+    [ValidatePattern('^H\d+AzureSentinel$')]
     [string]
     $CustName,
 
@@ -228,11 +231,11 @@ function PolicyCreation{
     
         [Parameter]
         [String]
-        $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Select-String -Pattern $pattern),
+        $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern})
     
         [Parameter(DontShow)]
         [String]
-        $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Select-String -Pattern $pattern),
+        $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern}),
 
         [Parameter(DontShow)]
         [string]
@@ -274,11 +277,11 @@ function PolicyCreation{
         param (
             [Parameter(DontShow)]
             [String]
-            $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Select-String $pattern),
+            $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern}),
     
             [Parameter( DontShow)]
             [String]
-            $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Select-String -Pattern $pattern),
+            $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern}),
     
             [Parameter(DontShow)]
             [array]
@@ -305,11 +308,11 @@ function PolicyCreation{
         param (
             [Parameter(DontShow)]
             [string]
-            $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Select-String -Pattern $pattern),
+            $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern}),
     
             [Parameter(DontShow)]
             [string]
-            $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Select-String -Pattern $pattern),
+            $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern}),
     
             [Parameter(DontShow)]
             [array]
@@ -369,12 +372,12 @@ function DeployAnalyticalRules {
 
         [Parameter(DontShow)]
         [String]
-        $ResourceGroup = ((Get-AzResourceGroup).Name -match $pattern),
+        $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern})
 
         [Parameter(DontShow)]
         [Hashtable]
         $TemplateParams = @{
-            workspace = Get-AzOperationalInsightsWorkspace -match $pattern
+            workspace = (Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern}
         }
 
     )
@@ -540,3 +543,5 @@ function existingBuild {
 }
 
 mainMenu
+
+rm -rf $FilePath
