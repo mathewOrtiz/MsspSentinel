@@ -503,7 +503,7 @@ function existingBuild {
             Write-Host "`nPress any key to return to the previous menu"
             [void][System.Console]::ReadKey($true)
         }
-		# Option 2
+		# Option 3
         if($subMenu2 -eq 3){
 			Clear-Host
 			Write-Host "`nDeploying Sentinel workspace..."
@@ -514,7 +514,7 @@ function existingBuild {
             Write-Host "`nPress any key to return to the previous menu"
             [void][System.Console]::ReadKey($true)
         }
-		# Option 2
+		# Option 4
         if($subMenu2 -eq 4){
 			Clear-Host
 			Write-Host "`nCreating the policies..."
@@ -525,7 +525,7 @@ function existingBuild {
             Write-Host "`nPress any key to return to the previous menu"
             [void][System.Console]::ReadKey($true)
         }
-        # Option 2
+        # Option 5
         if($subMenu2 -eq 5){
 			Clear-Host
 			Write-Host "`nSetting table retention..."
@@ -536,7 +536,7 @@ function existingBuild {
             Write-Host "`nPress any key to return to the previous menu"
             [void][System.Console]::ReadKey($true)
         }
-		# Option 2
+		# Option 6
         if($subMenu2 -eq 6){
 			Clear-Host
 			Write-Host "`nDeploying data connectors..."
@@ -547,7 +547,7 @@ function existingBuild {
             Write-Host "`nPress any key to return to the previous menu"
             [void][System.Console]::ReadKey($true)
         }
-		# Option 2
+		# Option 7
         if($subMenu2 -eq 7){
 			Clear-Host
 			Write-Host "`nDeploying analytical rules..."
