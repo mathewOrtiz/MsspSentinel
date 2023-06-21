@@ -296,37 +296,21 @@ function DataConnectors{
     #Deploys our other Win & Linux system logs.
     $WinLogSources.ForEach({New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Name $_ -CollectErrors -CollectWarnings -CollectInformation -EventLogName $_})
     $LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -Name $_ -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Facility $_ -CollectEmergency -CollectAlert -CollectCritical -CollectError -CollectWarning -CollectNotice})
-
-    #The following below is used in order to set our context working directory back to our primary Sentinel tenant. We then reauth to the subscription under this AD user versus our Ntirety Principal User.
-    Set-AzContext -Tenant $HomeContext
-    Set-AzContext -Subscription $global:AzSubscription
 }
 
 #This function will need to be configured in order to get us our output that will 
 function DeployAnalyticalRules {
+    #The following below is used in order to set our context working directory back to our primary Sentinel tenant. We then reauth to the subscription under this AD user versus our Ntirety Principal User.
+    Set-AzContext -Tenant $HomeContext
+    Set-AzContext -Subscription $global:AzSubscription
+
     #We create the storage context which will use our Azure AD credentials to authenticate to the Blob in order to auth to our files
-    [CmdletBinding()]
-    param (
-        #In the below parameters need to ensure that we add a pattern matching feature. This will ensure that we aren't relying on the users input.
-        [Parameter(DontShow)]
-        $StorageAccAuth = (New-AzStorageContext -StorageAccountName $global:StorageAccountName),
+    $StorageAccAuth = (New-AzStorageContext -StorageAccountName $global:StorageAccountName)
+    $ContainerName = ((Get-AzStorageContainer -Context $StorageAccAuth).Name)
+    $AnalyticalRules = @((Get-AzStorageBlob -Context $StorageAccAuth -Container $ContainerName).Name)   
+    $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern})
+    $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern})
 
-        [Parameter(DontShow)]
-        [String]
-        $ContainerName = ((Get-AzStorageContainer -Context $StorageAccAuth).Name),
-
-        [Parameter(DontShow)]
-        [array]
-        $AnalyticalRules = @((Get-AzStorageBlob -Context $StorageAccAuth -Container $ContainerName).Name),
-
-        [Parameter(DontShow)]
-        [String]
-        $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern}),
-
-        [Parameter(DontShow)]
-        [String]
-        $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern})
-    )
     #The following will need download all of the files to our working directory. 
     $AnalyticalRules.foreach({
         Get-AzStorageBlobContent -Context $StorageAccAuth -Blob $_ -Container $ContainerName -Destination $FilePath
@@ -334,8 +318,8 @@ function DeployAnalyticalRules {
 
     #Can use the raw JSON files in order to deploy the analytical rules the params that are needed are the workspace & potentially the region.
     $AnalyticalRules.ForEach({
-        New-AzResourceGroupDeployment -Name $_ -ResourceGroupName $ResourceGroup -TemplateFile $_ -Workspace $WorkspaceName -AsJob
-        Write-Output 'The Analytical Rule Set for $_ Is being deployed once this has completed the next one will deploy'
+        New-AzResourceGroupDeployment -Name $_ -ResourceGroupName $ResourceGroup -TemplateFile $FilePath/$_ -Workspace $WorkspaceName -AsJob
+        Write-Output 'The Analytical Rule Set for '$_' is being deployed once this has completed the next one will deploy'
     })
 }
 
@@ -356,7 +340,7 @@ function ErrorCheck{
     Write-Output "The following functions of the deployment had errors: " $global:FunctionsToCheck.Keys
 }
 
-function mainMenu {
+function MainMenu {
     $mainMenu = 'X'
     while($mainMenu -notin 'q', 'Q'){
         Clear-Host
@@ -369,16 +353,16 @@ function mainMenu {
         $mainMenu = Read-Host "`nSelection (q to quit)"
         # Launch New Build submenu
         if($mainMenu -eq 1){
-            newBuild
+            NewBuild
         }
         # Launch Exisiting Build submenu
         if($mainMenu -eq 2){
-            existingBuild
+            ExistingBuild
         }
     }
 }
 
-function newBuild {
+function NewBuild {
     $subMenu1 = 'X'
     while($subMenu1 -notin 'q', 'Q', 'n', 'N'){
         Clear-Host
@@ -410,12 +394,12 @@ function newBuild {
             Write-Host -ForegroundColor DarkCyan "`nScript execution complete!"
             Write-Host "`nPress any key to return to the main menu"
             [void][System.Console]::ReadKey($true)
-			mainMenu
+			MainMenu
         }
     }
 }
 
-function existingBuild {
+function ExistingBuild {
     $subMenu2 = 'X'
     Clear-Host
     GatherInfo
@@ -520,8 +504,12 @@ function existingBuild {
     }
 }
 
-mainMenu
+function CleanUp{
+    Write-Host "Remove Item"
+    Remove-Item -Recurse -Path $FilePath
+    $ErrorActionPreference = 'Continue'
+    $ErrorView = 'NormalView'
+}
 
-Remove-Item -Recurse -Path $FilePath
-$ErrorActionPreference = 'Continue'
-$ErrorView = 'NormalView'
+MainMenu
+CleanUp
