@@ -231,11 +231,11 @@ function PolicyCreation{
     
         [Parameter]
         [String]
-        $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern})
+        $ResourceGroup = (Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern},
     
         [Parameter(DontShow)]
         [String]
-        $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern}),
+        $WorkspaceName = (Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern},
 
         [Parameter(DontShow)]
         [string]
@@ -277,11 +277,11 @@ function PolicyCreation{
         param (
             [Parameter(DontShow)]
             [String]
-            $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern}),
+            $WorkspaceName = (Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern},
     
             [Parameter( DontShow)]
             [String]
-            $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern}),
+            $ResourceGroup = (Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern},
     
             [Parameter(DontShow)]
             [array]
@@ -308,11 +308,11 @@ function PolicyCreation{
         param (
             [Parameter(DontShow)]
             [string]
-            $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern}),
+            $ResourceGroup = (Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern},
     
             [Parameter(DontShow)]
             [string]
-            $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern}),
+            $WorkspaceName = (Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern},
     
             [Parameter(DontShow)]
             [array]
@@ -372,7 +372,7 @@ function DeployAnalyticalRules {
 
         [Parameter(DontShow)]
         [String]
-        $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern})
+        $ResourceGroup = (Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern}
 
         [Parameter(DontShow)]
         [Hashtable]
