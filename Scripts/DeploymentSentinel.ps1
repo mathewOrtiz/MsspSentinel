@@ -241,7 +241,7 @@ function PolicyCreation{
     Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignActivity -Name AzureActivityLogRemediation    
 }
     
-    #Sets our Table Retention 
+#Sets our Table Retention 
 function RetentionSet{
     [CmdletBinding()]
     param (
