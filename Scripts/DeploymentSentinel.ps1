@@ -170,7 +170,6 @@ function DeploySentinel{
         [string]
         $CustName,
 
-        [Parameter(Mandatory=$true, HelpMessage="Please enter the location that is closet to this customer. Using the foramt eastus,westus etc")]
         [Parameter(Mandatory=$true, HelpMessage="Please enter the location to deploy (Options: eastus or westus)")]
         [ValidatePattern('^([a-z0-9]+)$')]
         [string]
