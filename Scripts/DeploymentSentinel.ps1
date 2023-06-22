@@ -26,7 +26,6 @@ $DisplayNameL1 = "SOC L1"
 $DisplaynameL2 = "SOC L2"
 $DisplayNameReaders = "SOC Readers"
 $HomeContext = (Get-AzContext).Tenant.Id
-$StorageAccountName = "scriptsentinel"
 $FunctionsToCheck = @{}
 $AzSubscription = ""
 $location = ""
@@ -325,7 +324,7 @@ function DeployAnalyticalRules {
     Set-AzContext -Subscription $global:AzSubscription
 
     #We create the storage context which will use our Azure AD credentials to authenticate to the Blob in order to auth to our files
-    $StorageAccAuth = (New-AzStorageContext -StorageAccountName $global:StorageAccountName)
+    $StorageAccAuth = (New-AzStorageContext -StorageAccountName scriptsentinel)
     $ContainerName = ((Get-AzStorageContainer -Context $StorageAccAuth).Name)
     $AnalyticalRules = @((Get-AzStorageBlob -Context $StorageAccAuth -Container $ContainerName).Name)   
     $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern})
@@ -526,7 +525,6 @@ function ExistingBuild {
 }
 
 function CleanUp{
-    Write-Host "Remove Item"
     Remove-Item -Recurse -Path $FilePath
     $ErrorActionPreference = 'Continue'
     $ErrorView = 'NormalView'
