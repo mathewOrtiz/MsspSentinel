@@ -26,12 +26,13 @@ $DisplayNameL1 = "SOC L1"
 $DisplaynameL2 = "SOC L2"
 $DisplayNameReaders = "SOC Readers"
 $HomeContext = (Get-AzContext).Tenant.Id
-$StorageAccountName = ""
+$StorageAccountName = "scriptsentinel"
 $FunctionsToCheck = @{}
 $AzSubscription = ""
+$location = ""
 
 function GatherInfo{
-    $global:StorageAccountName = Read-Host "Enter the name of the storage account containing the analytical rules"
+    #$global:StorageAccountName = Read-Host "Enter the name of the storage account containing the analytical rules"
 
     #The following is used in order to configure the necessary context to the new customer subscription.
     Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for.
@@ -40,11 +41,17 @@ This can be retrieved from the Azure AD overview page. Customer Tenant ID: " -Fo
     $NewInstance = Read-Host 
     $CustContext = Set-AzContext -Tenant $NewInstance
 
-    Write-Host "Enter in the subscription ID you would like to deploy the solution to: " -Foregroundcolor $DefaultColor -NoNewline
+    Write-Host "Enter the subscription ID you would like to deploy the solution: " -Foregroundcolor $DefaultColor -NoNewline
     $NewSub = Read-Host
 
     #After setting our context to the necessary customer tenant we grab the Subscription ID to use later on for Analytical rule import.
     $global:AzSubscription = (Get-AzContext).Subscription.Id
+
+    do{
+        Write-Host "Enter the location to deploy (Options: eastus or westus): " -NoNewline -ForegroundColor $DefaultColor
+        $global:location = Read-Host
+    }
+    while($global:location -notin "eastus", "westus")
 
     #Creating the static variables to use for housing errors for the error check portion of the scipt. This hashtable will have all of the necessary errors. 
     $global:FunctionsToCheck = @{}
@@ -77,6 +84,9 @@ function LightHouseConnection{
     $parameters = [ordered]@{
         mspOfferName = @{
             value = "Ntirety Lighthouse SOC"
+        }
+        mspOfferDescription = @{
+            value = "Ntirety SOC access granted"
         }
         managedByTenantId = @{
             value = $TenantId
@@ -157,40 +167,44 @@ function LightHouseConnection{
     $MainObject | ConvertTo-Json -Depth 5 | Out-File -FilePath $FilePath/TemplateParam.json
 
     Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -OutFile $FilePath/ArmTemplateDeploy.json 
-    New-AzDeployment -TemplateFile $FilePath/ArmTemplateDeploy.json -TemplateParameterFile $FilePath/TemplateParam.json
+    New-AzDeployment -TemplateFile $FilePath/ArmTemplateDeploy.json -TemplateParameterFile $FilePath/TemplateParam.json -Location $global:location
 }
 
 function DeploySentinel{
     #Once the above has completed we have ensured that the necessary providers for the rest of our task have been completed
     #in the below lines we setup our variables which will be used later. We enforce the checking by using a dynamic regex check
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory=$true, HelpMessage="Please enter the name of the customer using the format H#")]
-        [ValidatePattern('^H\d+$')]
-        [string]
-        $CustName,
 
-        [Parameter(Mandatory=$true, HelpMessage="Please enter the location that is closet to this customer. Using the foramt eastus,westus etc")]
-        [Parameter(Mandatory=$true, HelpMessage="Please enter the location to deploy (Options: eastus or westus)")]
-        [ValidatePattern('^([a-z0-9]+)$')]
-        [string]
-        $location,
+    $Tag = @{
+        "Production" = "False"
+    }
 
-        [Parameter(DontShow)]
-        [Hashtable]
-        $Tag = @{
-            "Production" = "false"
+    do{
+        Write-Host ""
+        do{
+             Write-Host "Please enter the customer H#: " -NoNewline -ForegroundColor $DefaultColor
+             $CustName = Read-Host
         }
-    )
+        while($CustName -notmatch '^H\d+$')
+        
+        $CustName += "AzureSentinel"
 
-    $CustName += "AzureSentinel"
+        Write-Host "`nConfirm the following..."
+        Write-Host "Sentinel Workspace and Resource Group Name: " -NoNewline
+        Write-Host $CustName -ForegroundColor Green
+        Write-Host "Location: " -NoNewline
+        Write-Host $global:location -ForegroundColor Green
+        Write-Host "`nProceed (y/n): " -NoNewline -ForegroundColor $DefaultColor
+        $confirm = Read-Host
+    }
+    while($confirm -ne 'y')
+
     #Deploys the resource group which will house the Sentinel resources. 
-    New-AzResourceGroup -Name $CustName -Location $location
+    New-AzResourceGroup -Name $CustName -Location $global:location
 
     #using the match regex we are able to ensure we grab only the resource group that we created in the previous step of variable init. 
     $ResourceGroupName = (Get-AzResourceGroup).ResourceGroupName
 
-    New-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Name $CustName -Location $location -Tag $Tag -Sku pergb2018
+    New-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Name $CustName -Location $global:location -Tag $Tag -Sku pergb2018
 
     #Deploy Sentinel
     New-AzSentinelOnboardingState -ResourceGroupName $CustName -WorkspaceName $CustName -Name "default"
@@ -227,9 +241,9 @@ function PolicyCreation{
     #begin creation of our new policy
     
     #need to see if the variables being assigned here is really necessary. 
-    New-AzPolicyAssignment -Name $WinAssignName -PolicyDefinition $DefinitionWin -PolicyParameterObject @{"logAnalytics"="$WorkspaceName"} -AssignIdentity -Location eastus -WarningAction Ignore
-    New-AzPolicyAssignment -Name $LinAssignName -PolicyDefinition $DefinitionLinux -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location eastus -WarningAction Ignore
-    New-AzPolicyAssignment -Name $ActivityName -PolicyDefinition $DefinitionActivity -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location eastus -WarningAction Ignore
+    New-AzPolicyAssignment -Name $WinAssignName -PolicyDefinition $DefinitionWin -PolicyParameterObject @{"logAnalytics"="$WorkspaceName"} -AssignIdentity -Location $global:location -WarningAction Ignore
+    New-AzPolicyAssignment -Name $LinAssignName -PolicyDefinition $DefinitionLinux -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location $global:location -WarningAction Ignore
+    New-AzPolicyAssignment -Name $ActivityName -PolicyDefinition $DefinitionActivity -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location $global:location -WarningAction Ignore
     #Now we need to fetch the policy -Id of the above. 
     
     $PolicyAssignWind = (Get-AzPolicyAssignment -Name $WinAssignName -WarningAction Ignore).PolicyAssignmentId
@@ -337,7 +351,8 @@ function ErrorCheck{
         $error.Clear()
     }
 
-    Write-Output "The following functions of the deployment had errors: " $global:FunctionsToCheck.Keys
+    Write-Host "The following functions of the deployment had errors: " 
+    Write-Host $global:FunctionsToCheck.Keys -ForegroundColor Red
 }
 
 function MainMenu {
