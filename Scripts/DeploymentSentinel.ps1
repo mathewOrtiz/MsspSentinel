@@ -35,14 +35,20 @@ function GatherInfo{
     #$global:StorageAccountName = Read-Host "Enter the name of the storage account containing the analytical rules"
 
     #The following is used in order to configure the necessary context to the new customer subscription.
-    Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for.
+    do{
+        Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for.
     
 This can be retrieved from the Azure AD overview page. Customer Tenant ID: " -Foregroundcolor $DefaultColor -NoNewline
-    $NewInstance = Read-Host 
+        $NewInstance = Read-Host 
+    }
+    while($NewInstance -notmatch '^[a-zA-Z0-9]{8}-([a-zA-Z0-9]{4}-){3}[a-zA-Z0-9]{12}$')
     $CustContext = Set-AzContext -Tenant $NewInstance
 
-    Write-Host "Enter the subscription ID you would like to deploy the solution: " -Foregroundcolor $DefaultColor -NoNewline
-    $NewSub = Read-Host
+    do{
+        Write-Host "Enter the subscription ID you would like to deploy the solution: " -Foregroundcolor $DefaultColor -NoNewline
+        $NewSub = Read-Host
+    }
+    while($NewSub -notmatch '^[a-zA-Z0-9]{8}-([a-zA-Z0-9]{4}-){3}[a-zA-Z0-9]{12}$')
 
     #After setting our context to the necessary customer tenant we grab the Subscription ID to use later on for Analytical rule import.
     $global:AzSubscription = (Get-AzContext).Subscription.Id
