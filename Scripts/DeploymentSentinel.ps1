@@ -3,9 +3,9 @@ $ErrorActionPreference = 'silentlycontinue'
 $ErrorView = 'CategoryView'
 $DefaultColor = [ConsoleColor]::Cyan
 $pattern = "^H\d+AzureSentinel$"
-$RandNum = Get-Random -Maximum 10000
+$Date = Get-Date -Format "MMddyyyyHHmm"
 $BaseName = "Sentinel"
-$DirectoryName = $BaseName += $RandNum
+$DirectoryName = $BaseName += $Date
 $FilePath = New-Item -ItemType Directory /home/$DirectoryName
 $SocLevel1Id = (Get-AzADGroup -SearchString "SocLevel1").Id
 $SocLevel2Id = (Get-AzADGroup -SearchString "SocLevel2").Id
