@@ -31,8 +31,6 @@ $AzSubscription = ""
 $location = ""
 
 function GatherInfo{
-    #$global:StorageAccountName = Read-Host "Enter the name of the storage account containing the analytical rules"
-
     #The following is used in order to configure the necessary context to the new customer subscription.
     do{
         Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for.
@@ -41,6 +39,7 @@ This can be retrieved from the Azure AD overview page. Customer Tenant ID: " -Fo
         $NewInstance = Read-Host 
     }
     while($NewInstance -notmatch '^[a-zA-Z0-9]{8}-([a-zA-Z0-9]{4}-){3}[a-zA-Z0-9]{12}$')
+    
     $CustContext = Set-AzContext -Tenant $NewInstance
 
     do{
@@ -360,16 +359,40 @@ function ErrorCheck{
     Write-Host $global:FunctionsToCheck.Keys -ForegroundColor Red
 }
 
+function WelcomeBanner{
+    Clear-Host
+    Write-Host "============================================================" 
+    Write-Host "`t    _   _  _    _             _" -ForegroundColor $DefaultColor         
+    Write-Host "`t   | \ | || |  (_)           | |" -ForegroundColor $DefaultColor            
+    Write-Host "`t   |  \| || |_  _  _ __  ___ | |_  _   _" -ForegroundColor $DefaultColor    
+    Write-Host "`t   |     || __|| || '__|/ _ \| __|| | | |" -ForegroundColor $DefaultColor    
+    Write-Host "`t   | |\  || |_ | || |  |  __/| |_ | |_| |" -ForegroundColor $DefaultColor    
+    Write-Host "`t   |_| \_| \__||_||_|   \___| \__| \__, |" -ForegroundColor $DefaultColor    
+    Write-Host "`t                                    __/ |" -ForegroundColor $DefaultColor    
+    Write-Host "`t                                   |___/ " -ForegroundColor $DefaultColor
+    Write-Host "============================================================"      
+    Write-Host "`nWelcome to the Ntirety Sentinel Deployment Script`n"
+    Write-Host "Written by Mat Ortiz with a little help from Marc Ackermann"
+    Write-Host "Any bugs or issues....hit up Mat :)"
+    Write-Host "Version: 1.0"
+    Write-Host "Release Date: June 22, 2023"
+    Write-Host "`nPlease choose a menu option below to get started"-ForegroundColor $DefaultColor
+}
+
 function MainMenu {
     $mainMenu = 'X'
+
+    WelcomeBanner
+
     while($mainMenu -notin 'q', 'Q'){
-        Clear-Host
-        Write-Host "`n`t`t Sentinel Deployment Script`n"
-        Write-Host -ForegroundColor Cyan "Main Menu"
+        Write-Host "`n-----------------------------"
+        Write-Host -ForegroundColor Cyan "          Main Menu"
+        Write-Host "-----------------------------"
         Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "1"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
             Write-Host -ForegroundColor DarkCyan " New Build"
         Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "2"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
             Write-Host -ForegroundColor DarkCyan " Finish Existing Build"
+        Write-Host "`n-----------------------------"
         $mainMenu = Read-Host "`nSelection (q to quit)"
         # Launch New Build submenu
         if($mainMenu -eq 1){
