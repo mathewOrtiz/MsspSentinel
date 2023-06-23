@@ -10,7 +10,7 @@ do{
 }
 while($MainTenantId -notmatch '^[a-zA-Z0-9]{8}-([a-zA-Z0-9]{4}-){3}[a-zA-Z0-9]{12}$')
 
-Write-Host "Enter the names of the two rule to disbale. Only include the main rule name do not "
+Write-Host "Enter the names of the two rule to disbale. Only include the main rule name do not " -Foregroundcolor Cyan
 Write-Host "include things like Azure Default or [AZURE-000]. Also no quotes needed." -Foregroundcolor Cyan
 Write-Host "Rule 1: " -Foregroundcolor Cyan -NoNewline
 $Rule1ToDisable = Read-Host 
@@ -23,13 +23,13 @@ $TemplateFile = $args[0]
 
 #Read in template file if none was provided as command line argument
 do {
-    Write-Host "File of Rule to Import (JSON): " -Foregroundcolor Cyan -NoNewline
+    Write-Host "JSON file of rule to import: " -Foregroundcolor Cyan -NoNewline
     $TemplateFile = Read-Host 
 }
 while($null -eq $TemplateFile)
 
 #Connect to main Ntirety tenant
-#Connect-AzAccount -TenantId $MainTenantId -WarningAction Ignore
+Connect-AzAccount -TenantId $MainTenantId -WarningAction Ignore
 
 #Get list of subscriptions
 $Subscriptions = @(Get-AzSubscription -WarningAction Ignore).Id
