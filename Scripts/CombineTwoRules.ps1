@@ -10,7 +10,8 @@ do{
 }
 while($MainTenantId -notmatch '^[a-zA-Z0-9]{8}-([a-zA-Z0-9]{4}-){3}[a-zA-Z0-9]{12}$')
 
-Write-Host "Enter the names of the two rule to disbale. Only include the main rule name do not include things like Azure Default or [AZURE-000]" -Foregroundcolor Cyan
+Write-Host "Enter the names of the two rule to disbale. Only include the main rule name do not "
+Write-Host "include things like Azure Default or [AZURE-000]. Also no quotes needed." -Foregroundcolor Cyan
 Write-Host "Rule 1: " -Foregroundcolor Cyan -NoNewline
 $Rule1ToDisable = Read-Host 
 
