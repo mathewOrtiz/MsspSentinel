@@ -1,12 +1,9 @@
 #Global Variable initialized
-$ErrorActionPreference = 'silentlycontinue'
+$ErrorActionPreference = 'SilentlyContinue'
 $ErrorView = 'CategoryView'
+$ProgressPreference = 'SilentlyContinue'
 $DefaultColor = [ConsoleColor]::Cyan
 $pattern = "^H\d+AzureSentinel$"
-$Date = Get-Date -Format "MMddyyyyHHmm"
-$BaseName = "Sentinel"
-$DirectoryName = $BaseName += $Date
-$FilePath = New-Item -ItemType Directory /home/$DirectoryName
 $SocLevel1Id = (Get-AzADGroup -SearchString "SocLevel1").Id
 $SocLevel2Id = (Get-AzADGroup -SearchString "SocLevel2").Id
 $SocEngId = (Get-AzADGroup -SearchString "Security Engineering").Id
@@ -26,21 +23,23 @@ $DisplayNameL1 = "SOC L1"
 $DisplaynameL2 = "SOC L2"
 $DisplayNameReaders = "SOC Readers"
 $HomeContext = (Get-AzContext).Tenant.Id
-$FunctionsToCheck = @{}
-$AzSubscription = ""
-$location = ""
+$global:FunctionsToCheck = @{}
+$global:AzSubscription = ""
+$global:Location = ""
+$global:CustHNumber = ""
+$global:StorageAccount = "scriptsentinel"
 
 function GatherInfo{
     #The following is used in order to configure the necessary context to the new customer subscription.
     do{
-        Write-Host "Enter in the tenant ID of the subscription that you need to deploy the Sentinel resources for.
+        Write-Host "Enter in the tenant ID of the subscription that you need to deploy Sentinel.
     
 This can be retrieved from the Azure AD overview page. Customer Tenant ID: " -Foregroundcolor $DefaultColor -NoNewline
         $NewInstance = Read-Host 
     }
     while($NewInstance -notmatch '^[a-zA-Z0-9]{8}-([a-zA-Z0-9]{4}-){3}[a-zA-Z0-9]{12}$')
     
-    $CustContext = Set-AzContext -Tenant $NewInstance
+    $temp = Set-AzContext -Tenant $NewInstance
 
     do{
         Write-Host "Enter the subscription ID you would like to deploy the solution: " -Foregroundcolor $DefaultColor -NoNewline
@@ -48,14 +47,20 @@ This can be retrieved from the Azure AD overview page. Customer Tenant ID: " -Fo
     }
     while($NewSub -notmatch '^[a-zA-Z0-9]{8}-([a-zA-Z0-9]{4}-){3}[a-zA-Z0-9]{12}$')
 
+    do{
+        Write-Host "Please enter the customer H#: " -NoNewline -ForegroundColor $DefaultColor
+        $global:CustHNumber = Read-Host
+    }
+    while($global:CustHNumber -notmatch '^H\d+$')
+
     #After setting our context to the necessary customer tenant we grab the Subscription ID to use later on for Analytical rule import.
     $global:AzSubscription = (Get-AzContext).Subscription.Id
 
     do{
         Write-Host "Enter the location to deploy (Options: eastus or westus): " -NoNewline -ForegroundColor $DefaultColor
-        $global:location = Read-Host
+        $global:Location = Read-Host
     }
-    while($global:location -notin "eastus", "westus")
+    while($global:Location -notin "eastus", "westus")
 
     #Creating the static variables to use for housing errors for the error check portion of the scipt. This hashtable will have all of the necessary errors. 
     $global:FunctionsToCheck = @{}
@@ -70,9 +75,10 @@ function ResourceProviders{
     #The following loop will work through the subscription in order to register all of the resource providers we need for our resources. 
     foreach($Provider in $RequiredProviderCheck){
         $ProviderName = (Get-AzResourceProvider -ProviderNamespace $Provider).RegistrationState | Select-Object -First 1
-        $ProviderName
         if($ProviderName -match "NotRegistered"){
-            Register-AzResourceProvider -ProviderNamespace $Provider
+            Write-Host 'Registering resource provider ' -NoNewline
+            Write-Host $Provider -ForegroundColor $DefaultColor
+            $temp=Register-AzResourceProvider -ProviderNamespace $Provider
         }
     }
 }
@@ -167,11 +173,17 @@ function LightHouseConnection{
         parameters = $parameters
     }
 
+    $DirectoryName = "/home/Sentinel" + (Get-Date -Format "MMddyyyyHHmm")
+    $FilePath = New-Item -ItemType Directory $DirectoryName
+
     #Converts the above to a JSON formatted file to be used for the ARM template push. 
     $MainObject | ConvertTo-Json -Depth 5 | Out-File -FilePath $FilePath/TemplateParam.json
 
-    Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -OutFile $FilePath/ArmTemplateDeploy.json 
-    New-AzDeployment -TemplateFile $FilePath/ArmTemplateDeploy.json -TemplateParameterFile $FilePath/TemplateParam.json -Location $global:location
+    Write-Host 'Establishing Azure Lighthouse connection'
+    $temp = Invoke-WebRequest -Uri https://raw.githubusercontent.com/Azure/Azure-Lighthouse-samples/master/templates/delegated-resource-management/subscription/subscription.json -OutFile $FilePath/ArmTemplateDeploy.json 
+    $temp = New-AzDeployment -TemplateFile $FilePath/ArmTemplateDeploy.json -TemplateParameterFile $FilePath/TemplateParam.json -Location $global:Location
+
+    Remove-Item -Recurse -Path $FilePath
 }
 
 function DeploySentinel{
@@ -182,36 +194,32 @@ function DeploySentinel{
         "Production" = "False"
     }
 
-    do{
-        Write-Host ""
-        do{
-             Write-Host "Please enter the customer H#: " -NoNewline -ForegroundColor $DefaultColor
-             $CustName = Read-Host
-        }
-        while($CustName -notmatch '^H\d+$')
-        
-        $CustName += "AzureSentinel"
+    do{        
+        $global:CustHNumber += "AzureSentinel"
 
-        Write-Host "`nConfirm the following..."
+        Write-Host "`nConfirm the following..." -ForegroundColor $DefaultColor
         Write-Host "Sentinel Workspace and Resource Group Name: " -NoNewline
-        Write-Host $CustName -ForegroundColor Green
+        Write-Host $global:CustHNumber -ForegroundColor $DefaultColor
         Write-Host "Location: " -NoNewline
-        Write-Host $global:location -ForegroundColor Green
-        Write-Host "`nProceed (y/n): " -NoNewline -ForegroundColor $DefaultColor
+        Write-Host $global:Location -ForegroundColor $DefaultColor
+        Write-Host "`nProceed (y/n): " -NoNewline
         $confirm = Read-Host
     }
     while($confirm -ne 'y')
 
     #Deploys the resource group which will house the Sentinel resources. 
-    New-AzResourceGroup -Name $CustName -Location $global:location
+    Write-Host "Deploying the resource group"
+    $temp = New-AzResourceGroup -Name $global:CustHNumber -Location $global:Location
 
     #using the match regex we are able to ensure we grab only the resource group that we created in the previous step of variable init. 
     $ResourceGroupName = (Get-AzResourceGroup).ResourceGroupName
 
-    New-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Name $CustName -Location $global:location -Tag $Tag -Sku pergb2018
+    Write-Host "Deploying the log analytics workspace"
+    $temp = New-AzOperationalInsightsWorkspace -ResourceGroupName $ResourceGroupName -Name $global:CustHNumber -Location $global:Location -Tag $Tag -Sku pergb2018
 
     #Deploy Sentinel
-    New-AzSentinelOnboardingState -ResourceGroupName $CustName -WorkspaceName $CustName -Name "default"
+    Write-Host "Deploying Sentinel"
+    $temp = New-AzSentinelOnboardingState -ResourceGroupName $global:CustHNumber -WorkspaceName $global:CustHNumber -Name "default"
 }
 
 function PolicyCreation{
@@ -234,7 +242,7 @@ function PolicyCreation{
         [string]
         $ActivityName = 'AzureActivityLog'
     )
-    
+
     #Grabs our policy Definition for use in the next step. 
     $DefinitionWin = Get-AzPolicyDefinition | Where-Object { $_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Windows servers' }
     $DefinitionLinux = Get-AzPolicyDefinition | Where-Object {$_.Properties.DisplayName -eq 'Configure Log Analytics extension on Azure Arc enabled Linux servers. See deprecation notice below'}
@@ -245,18 +253,20 @@ function PolicyCreation{
     #begin creation of our new policy
     
     #need to see if the variables being assigned here is really necessary. 
-    New-AzPolicyAssignment -Name $WinAssignName -PolicyDefinition $DefinitionWin -PolicyParameterObject @{"logAnalytics"="$WorkspaceName"} -AssignIdentity -Location $global:location -WarningAction Ignore
-    New-AzPolicyAssignment -Name $LinAssignName -PolicyDefinition $DefinitionLinux -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location $global:location -WarningAction Ignore
-    New-AzPolicyAssignment -Name $ActivityName -PolicyDefinition $DefinitionActivity -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location $global:location -WarningAction Ignore
+    Write-Host "Assigning Azure policies"
+    $temp = New-AzPolicyAssignment -Name $WinAssignName -PolicyDefinition $DefinitionWin -PolicyParameterObject @{"logAnalytics"="$WorkspaceName"} -AssignIdentity -Location $global:Location -WarningAction Ignore
+    $temp = New-AzPolicyAssignment -Name $LinAssignName -PolicyDefinition $DefinitionLinux -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location $global:Location -WarningAction Ignore
+    $temp = New-AzPolicyAssignment -Name $ActivityName -PolicyDefinition $DefinitionActivity -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location $global:Location -WarningAction Ignore
     #Now we need to fetch the policy -Id of the above. 
     
     $PolicyAssignWind = (Get-AzPolicyAssignment -Name $WinAssignName -WarningAction Ignore).PolicyAssignmentId
     $PolicyAssignLinux = (Get-AzPolicyAssignment -Name $LinAssignName -WarningAction Ignore).PolicyAssignmentId
     $PolicyAssignActivity = (Get-AzPolicyAssignment -Name $ActivityName -WarningAction Ignore).PolicyAssignmentId 
     
-    Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignWind -Name WindowsOmsRemediation
-    Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignLinux -Name LinuxOmsRemediation
-    Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignActivity -Name AzureActivityLogRemediation    
+    Write-Host "Starting Azure policy remediation"
+    $temp = Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignWind -Name WindowsOmsRemediation
+    $temp = Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignLinux -Name LinuxOmsRemediation
+    $temp = Start-AzPolicyRemediation -PolicyAssignmentId $PolicyAssignActivity -Name AzureActivityLogRemediation
 }
     
 #Sets our Table Retention 
@@ -277,7 +287,14 @@ function RetentionSet{
     )
     #Before beginning iteration through the table we query to ensure that our Job has been completed to deploy our Sentinel resources. If this hasn't been completed then we wait for it to finish.
     #The below will re-run the sentinel deploy script in order to ensure that the necessary resources are created to be modified. 
-    $tables.ForEach({Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ -RetentionInDays 90 -TotalRetentionInDays 365 -AsJob})  
+    Write-Host 'Updating retention settings for all tables to' -NoNewline
+    Write-Host ' 90 days' -NoNewline -ForegroundColor $DefaultColor
+    Write-Host ' hot storage and' -NoNewline
+    Write-Host ' 365 days' -NoNewline -ForegroundColor $DefaultColor
+    Write-Host ' cold storage'
+    $tables.ForEach({
+        $temp = Update-AzOperationalInsightsTable -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -TableName $_ -RetentionInDays 90 -TotalRetentionInDays 365 -AsJob
+    })  
 }
     
 function DataConnectors{
@@ -307,38 +324,63 @@ function DataConnectors{
         [string]
         $SubscriptionId = ((Get-AzContext).Subscription.Id)
     )
+
+    $DirectoryName = "/home/Sentinel" + (Get-Date -Format "MMddyyyyHHmm")
+    $FilePath = New-Item -ItemType Directory $DirectoryName
+
     #Enables Common Security Event logs by pulling the template file we need from github & passing the parameters inline.
-    Invoke-WebRequest -Uri $Uri -OutFile $FilePath/NtiretySecurityWinEvents.json
-    New-AzResourceGroupDeployment -TemplateFile $FilePath/NtiretySecurityWinEvents.json -WorkspaceName $WorkspaceName -ResourceGroupName $ResourceGroup -securityCollectionTier Recommended -AsJob
+    Write-Host 'Enabling Common Security Event logs'
+    $temp = Invoke-WebRequest -Uri $Uri -OutFile $FilePath/NtiretySecurityWinEvents.json
+    $temp = New-AzResourceGroupDeployment -TemplateFile $FilePath/NtiretySecurityWinEvents.json -WorkspaceName $WorkspaceName -ResourceGroupName $ResourceGroup -securityCollectionTier Recommended -AsJob
     
     #Deploys our other Win & Linux system logs.
-    $WinLogSources.ForEach({New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Name $_ -CollectErrors -CollectWarnings -CollectInformation -EventLogName $_})
-    $LinuxLogSources.ForEach({New-AzOperationalInsightsLinuxSyslogDataSource -Name $_ -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Facility $_ -CollectEmergency -CollectAlert -CollectCritical -CollectError -CollectWarning -CollectNotice})
+    Write-Host 'Configuring data connector for Windows log sources'
+    $WinLogSources.ForEach({
+        $temp = New-AzOperationalInsightsWindowsEventDataSource -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Name $_ -CollectErrors -CollectWarnings -CollectInformation -EventLogName $_
+    })
+    Write-Host 'Configuring data connector for Linux log sources'
+    $LinuxLogSources.ForEach({
+        $temp = New-AzOperationalInsightsLinuxSyslogDataSource -Name $_ -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Facility $_ -CollectEmergency -CollectAlert -CollectCritical -CollectError -CollectWarning -CollectNotice
+    })
+
+    Remove-Item -Recurse -Path $FilePath
 }
 
 #This function will need to be configured in order to get us our output that will 
 function DeployAnalyticalRules {
     #The following below is used in order to set our context working directory back to our primary Sentinel tenant. We then reauth to the subscription under this AD user versus our Ntirety Principal User.
-    Set-AzContext -Tenant $HomeContext
-    Set-AzContext -Subscription $global:AzSubscription
+    $temp = Set-AzContext -Tenant $HomeContext
+    $temp = Set-AzContext -Subscription $global:AzSubscription
 
     #We create the storage context which will use our Azure AD credentials to authenticate to the Blob in order to auth to our files
-    $StorageAccAuth = (New-AzStorageContext -StorageAccountName scriptsentinel)
+    $StorageAccAuth = (New-AzStorageContext -StorageAccountName $global:StorageAccount)
     $ContainerName = ((Get-AzStorageContainer -Context $StorageAccAuth).Name)
     $AnalyticalRules = @((Get-AzStorageBlob -Context $StorageAccAuth -Container $ContainerName).Name)   
-    $ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern})
-    $WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern})
+    #$ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern})
+    #$WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern})
+    $Sentinel = (Get-AzOperationalInsightsWorkspace | Where-Object {$_.Tags.Production -eq "False"}) | Select-Object -Property Name, ResourceGroupName
+    $WorkspaceName = $Sentinel.Name
+    $ResourceGroup = $Sentinel.ResourceGroupName
+    $DirectoryName = "/home/Sentinel" + (Get-Date -Format "MMddyyyyHHmm")
+    $FilePath = New-Item -ItemType Directory $DirectoryName
 
-    #The following will need download all of the files to our working directory. 
+    #The following will download all of the files to our working directory. 
+    Write-Host 'Downloading analytical rules from Azure storage conatiner ' -NoNewline
+    Write-Host $global:StorageAccount -ForegroundColor $DefaultColor
+
     $AnalyticalRules.foreach({
-        Get-AzStorageBlobContent -Context $StorageAccAuth -Blob $_ -Container $ContainerName -Destination $FilePath
+        $temp = Get-AzStorageBlobContent -Context $StorageAccAuth -Blob $_ -Container $ContainerName -Destination $FilePath
     })
 
     #Can use the raw JSON files in order to deploy the analytical rules the params that are needed are the workspace & potentially the region.
     $AnalyticalRules.ForEach({
-        New-AzResourceGroupDeployment -Name $_ -ResourceGroupName $ResourceGroup -TemplateFile $FilePath/$_ -Workspace $WorkspaceName -AsJob
-        Write-Output 'The Analytical Rule Set for '$_' is being deployed once this has completed the next one will deploy'
+        $temp = New-AzResourceGroupDeployment -Name $_ -ResourceGroupName $ResourceGroup -TemplateFile $FilePath/$_ -Workspace $WorkspaceName -AsJob
+        Write-Host 'The analytical rule set ' -NoNewline
+        Write-Host $_ -ForegroundColor $DefaultColor -NoNewline
+        Write-Host ' is being deployed'
     })
+
+    Remove-Item -Recurse -Path $FilePath
 }
 
 function ErrorCheck{
@@ -353,10 +395,14 @@ function ErrorCheck{
             $global:FunctionsToCheck.add($FunctionName, $_.Exception.Message)
         })
         $error.Clear()
+        Write-Host "The following parts of the deployment had errors: " -ForegroundColor Red
+        Write-Host $global:FunctionsToCheck.Keys -ForegroundColor $DefaultColor
+        Write-Host "    -" $global:FunctionsToCheck[$FunctionName]
     }
-
-    Write-Host "The following functions of the deployment had errors: " 
-    Write-Host $global:FunctionsToCheck.Keys -ForegroundColor Red
+    else {
+        Write-Host "The previous part of the deployment had no errors." -ForegroundColor Green
+    }
+    
 }
 
 function WelcomeBanner{
@@ -375,7 +421,7 @@ function WelcomeBanner{
     Write-Host "Written by Mat Ortiz with a little help from Marc Ackermann"
     Write-Host "Any bugs or issues....hit up Mat :)"
     Write-Host "Version: 1.0"
-    Write-Host "Release Date: June 22, 2023"
+    Write-Host "Release Date: June 27, 2023"
     Write-Host "`nPlease choose a menu option below to get started"-ForegroundColor $DefaultColor
 }
 
@@ -419,22 +465,29 @@ function NewBuild {
         if($subMenu1 -ceq 'YES'){
 			Clear-Host
             Write-Host "`nDeploying Sentinel Build..."
+            Write-Host "`nRegistering resource providers..."
 			ResourceProviders
             ErrorCheck -FunctionName "ResourceProviders"
+            Write-Host "`nCreating Lighthouse connection..."
 			LightHouseConnection
             ErrorCheck -FunctionName "LightHouseConnection"
+            Write-Host "`nDeploying Sentinel workspace..."
 			DeploySentinel
             ErrorCheck -FunctionName "DeploySentinel"
+            Write-Host "`nCreating the policies..."
             PolicyCreation
             ErrorCheck -FunctionName "PolicyCreation"
+            Write-Host "`nSetting table retention..."
 			RetentionSet
             ErrorCheck -FunctionName "RetentionSet"
+            Write-Host "`nDeploying data connectors..."
 			DataConnectors
             ErrorCheck -FunctionName "DataConnectors"
+            Write-Host "`nDeploying analytical rules..."
 			DeployAnalyticalRules 
 			ErrorCheck -FunctionName "DeployAnalyticalRules"
             # Pause and wait for input before going back to the menu
-            Write-Host -ForegroundColor DarkCyan "`nScript execution complete!"
+            Write-Host "`nSentinel deployment complete!" -ForegroundColor DarkCyan 
             Write-Host "`nPress any key to return to the main menu"
             [void][System.Console]::ReadKey($true)
 			MainMenu
@@ -548,9 +601,9 @@ function ExistingBuild {
 }
 
 function CleanUp{
-    Remove-Item -Recurse -Path $FilePath
     $ErrorActionPreference = 'Continue'
     $ErrorView = 'NormalView'
+    $ProgressPreference = 'Continue'
 }
 
 MainMenu
