@@ -1,9 +1,8 @@
 function LightHouseConnection{
     $AutomationAppsObject = (AzADGroup -SearchString Automation).Id
     $SentinelResponderRole = (Get-AzRoleDefinition -Name "Azure Sentinel Responder").Id
-    
+    $TenantId = (Get-AzContext).Tenant.Id
     #Need to change the param generation to splatting. 
-        $TenantId = $HomeContext
         #Creates our hashtable to utilize for the parameters for the JSON file.
         $parameters = [ordered]@{
             mspOfferName = @{
