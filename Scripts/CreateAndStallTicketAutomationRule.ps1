@@ -3,7 +3,7 @@
 #for the specified list of analytical rules based on the CSV file.
 
 #CSV containing the rule names that we want to automate
-$RuleNameCSV = "C:\Users\mackermann\Sentinel\Rule Renaming\AutomatedRuleNames.csv"
+$RuleNameCSV = "https://raw.githubusercontent.com/mathewOrtiz/MsspSentinel/FinalTesting/ConfigFiles/RulesToAutomate.csv"
 
 #Function to get the rule URIs since they are specific to the subscription
 function GetRuleURIs{
@@ -23,8 +23,12 @@ function GetRuleURIs{
 	
 	$RuleUris = @()
 	
-	#Read in CSV of all the new rule names
-	$RulesForAutomation = Import-Csv -Path $RuleNameCSV
+	#Download list of rules to automate from Github, import it and then delete it for cleanup.
+    $ProgressPreference = 'SilentlyContinue'
+    Invoke-WebRequest -Uri $RuleNameCSV -Outfile ".\RulesToAutomate.csv"
+    $RulesForAutomation = Import-CSV -Path ".\RulesToAutomate.csv"
+    Remove-Item -Path ".\RulesToAutomate.csv"
+    $ProgressPreference = 'Continue'
 	
 	#Loop through all new rule names
 	$RulesForAutomation.ForEach({
