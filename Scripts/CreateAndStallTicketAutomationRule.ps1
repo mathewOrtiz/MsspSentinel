@@ -225,7 +225,7 @@ function SubMenu{
     $subMenu = 'X'
     while($subMenu -notin 'q', 'Q'){
         Clear-Host
-        Write-Host "`n`t`t One Customer`n"
+        Write-Host "`n`t Action Menu"
         Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "1"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
             Write-Host -ForegroundColor DarkCyan " Create new automation rule"
         Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "2"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
