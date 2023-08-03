@@ -1,0 +1,5 @@
+DisplayName
+"[MS-026] Excessive Windows Logon Failures"
+"[MS-030] Failed logon attempts by valid accounts within 10 mins"
+"[MS-040] Multiple authentication failures followed by a success"
+"[MS-041] AD Account Lockout"
