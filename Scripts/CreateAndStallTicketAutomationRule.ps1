@@ -30,12 +30,13 @@ function GetRuleURIs{
     Remove-Item -Path ".\RulesToAutomate.csv"
     $ProgressPreference = 'Continue'
 	
+	Write-Host ""
 	#Loop through all new rule names
 	$RulesForAutomation.ForEach({
 		#Get current new rule name from table
 		$RuleName = $_.DisplayName
 		
-		Write-Host "`nSearching for rule name " -NoNewLine
+		Write-Host "Searching for rule name " -NoNewLine
 		Write-Host $RuleName -ForegroundColor cyan
 		
 		#Find the rule in workspace and pull the ID and display name (Name = ID)
@@ -43,11 +44,12 @@ function GetRuleURIs{
 		
 		#If the rule is found add it to the array
 		if($null -ne $Rule){
+			Write-Host "`tRule found! Added for automation." -ForegroundColor yellow
 			$RuleUris += $Rule.Id
 		}
 		else{
 			#When rule is not found
-			Write-Host "Rule doesn't exist or it is disabled in this workspace." -ForegroundColor yellow
+			Write-Host "`tRule doesn't exist or it is disabled in this workspace." -ForegroundColor yellow
 		}
 	})
 	
@@ -141,35 +143,35 @@ function AutomationRule{
 				$RulesToAutomate = GetRuleURIs -RulesCsvPath $RuleNameCSV -ResourceGroup $ResourceGroup -WorkspaceName $WorkspaceName
 				$TriggeringLogicCondition.ConditionPropertyValue = $RulesToAutomate
 				
-				Write-Host "Creating new automation rule " -NoNewLine
+				Write-Host "`nCreating new automation rule " -NoNewLine
 				Write-Host $AutomationRuleName -ForegroundColor green
 				
-				Update-AzSentinelAutomationRule -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Id $AutomationRuleGuid -DisplayName $AutomationRuleName -Order 1 -Action $AutomationRuleActions -TriggeringLogicCondition $TriggeringLogicCondition
+				$temp = Update-AzSentinelAutomationRule -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Id $AutomationRuleGuid -DisplayName $AutomationRuleName -Order 1 -Action $AutomationRuleActions -TriggeringLogicCondition $TriggeringLogicCondition
 			}
 			#Enable the automation rule
 			elseif($Action -eq "Enable"){
 				$RulesToAutomate = GetRuleURIs -RulesCsvPath $RuleNameCSV -ResourceGroup $ResourceGroup -WorkspaceName $WorkspaceName
 				$TriggeringLogicCondition.ConditionPropertyValue = $RulesToAutomate
 				
-				Write-Host "Enabling automation rule " -NoNewLine
+				Write-Host "`nEnabling automation rule " -NoNewLine
 				Write-Host $AutomationRuleName -ForegroundColor green
 				
-				Update-AzSentinelAutomationRule -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Id $AutomationRuleGuid -DisplayName $AutomationRuleName -Order 1 -Action $AutomationRuleActions -TriggeringLogicCondition $TriggeringLogicCondition -TriggeringLogicIsEnabled
+				$temp = Update-AzSentinelAutomationRule -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Id $AutomationRuleGuid -DisplayName $AutomationRuleName -Order 1 -Action $AutomationRuleActions -TriggeringLogicCondition $TriggeringLogicCondition -TriggeringLogicIsEnabled
 			}
 			#Remove the automation rule
 			elseif($Action -eq "Remove"){
-				Write-Host "Removing automation rule " -NoNewLine
+				Write-Host "`nRemoving automation rule " -NoNewLine
 				Write-Host $AutomationRuleName -ForegroundColor green
 				
-				Remove-AzSentinelAutomationRule -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Id $AutomationRuleGuid
+				$temp = Remove-AzSentinelAutomationRule -ResourceGroupName $ResourceGroup -WorkspaceName $WorkspaceName -Id $AutomationRuleGuid
 			}
 			else{
-				Write-Host "Not a valid action. Please use Create, Enable or Remove."
+				Write-Host "`nNot a valid action. Please use Create, Enable or Remove."
 			}
 		}
 		else{
 			#When prod workspace is not found
-			Write-Host "No production workspace found for this customer." -ForegroundColor yellow
+			Write-Host "`nNo production workspace found for this customer." -ForegroundColor yellow
 		}
 	}
 }
@@ -237,7 +239,7 @@ function SubMenu{
         if($subMenu -eq 1){
             AutomationRule -Action Create -Subscriptions $Subscriptions
             #Pause and wait for input before going back to the menu
-            Write-Host -ForegroundColor DarkCyan "`nScript execution complete!"
+            Write-Host -ForegroundColor DarkCyan "Script execution complete!"
             Write-Host "`nPress any key to return to the previous menu"
             [void][System.Console]::ReadKey($true)
         }
@@ -245,7 +247,7 @@ function SubMenu{
         if($subMenu -eq 2){
 			AutomationRule -Action Enable -Subscriptions $Subscriptions
             #Pause and wait for input before going back to the menu
-            Write-Host -ForegroundColor DarkCyan "`nScript execution complete!"
+            Write-Host -ForegroundColor DarkCyan "Script execution complete!"
             Write-Host "`nPress any key to return to the previous menu"
             [void][System.Console]::ReadKey($true)
         }
@@ -253,7 +255,7 @@ function SubMenu{
         if($subMenu -eq 3){
 			AutomationRule -Action Remove -Subscriptions $Subscriptions
             #Pause and wait for input before going back to the menu
-            Write-Host -ForegroundColor DarkCyan "`nScript execution complete!"
+            Write-Host -ForegroundColor DarkCyan "Script execution complete!"
             Write-Host "`nPress any key to return to the previous menu"
             [void][System.Console]::ReadKey($true)
         }
