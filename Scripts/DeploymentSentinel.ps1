@@ -8,6 +8,8 @@ $SocLevel1Id = (Get-AzADGroup -SearchString "SocLevel1").Id
 $SocLevel2Id = (Get-AzADGroup -SearchString "SocLevel2").Id
 $SocEngId = (Get-AzADGroup -SearchString "Security Engineering").Id
 $SentinelReadersId = (Get-AzADGroup -SearchString "SentinelReaders").Id
+$ProvTeamId = (Get-AzAdGroup -SearchString "ProvTeam").Id
+$AutomationId = (Get-AzAdGroup -SearchString "Automation").Id
 $SentinelSecurityContrib = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Contributor').Id
 $ArcConnected = (Get-AzRoleDefinition -Name 'Azure Connected Machine Resource Administrator').Id
 $MonitoringContrib = (Get-AzRoleDefinition -Name 'Monitoring Contributor').Id
@@ -22,6 +24,8 @@ $DisplayNameEng = "Security Engineer"
 $DisplayNameL1 = "SOC L1"
 $DisplaynameL2 = "SOC L2"
 $DisplayNameReaders = "SOC Readers"
+$Prov = "ProvTeam"
+$AutomationName = "Automation"
 $HomeContext = (Get-AzContext).Tenant.Id
 $global:FunctionsToCheck = @{}
 $global:AzSubscription = ""
@@ -162,7 +166,32 @@ function LightHouseConnection{
                     principalId = $SentinelReaders
                     roleDefinitionId = $SentinelReaderRole
                     principalIdDisplayName = $DisplayNameReaders
-                }  
+                }
+                @{
+                    principalId = $ProvTeamId
+                    roleDefinitionId = $TagContrib
+                    principalIdDisplayName = $Prov
+                }
+                @{
+                    principalId = $ProvTeamId
+                    roleDefinitionId = $VirtualMachineContrib
+                    principalIdDisplayName = $Prov
+                }
+                @{
+                    principalId = $ProvTeamId
+                    roleDefinitionId = $ResourcePolicyContrib
+                    principalIdDisplayName = $Prov
+                }
+                @{
+                    principalId = $ProvTeamId
+                    roleDefinitionId = $ArcConnected
+                    principalIdDisplayName = $Prov
+                }
+                @{
+                    principalId = $AutomationId
+                    roleDefinitionId = $SentinelResponder
+                    principalIdDisplayName = $AutomationName
+                }
             )
         }
     }
