@@ -375,6 +375,54 @@ function DataConnectors{
     Remove-Item -Recurse -Path $FilePath
 }
 
+#This function creates a new service principal for Azure ARC installs.
+function CreateNewServicePrincipal{
+	Write-Host "Creating new service principal for Azure ARC installs" -ForegroundColor green
+	$Sentinel = (Get-AzOperationalInsightsWorkspace | Where-Object {$_.Tags.Production -eq "False"}) | Select-Object -Property Name, ResourceGroupName
+	$ResourceGroupId = (Get-AzResourceGroup | Where-Object {$_.ResourceGroupName -eq $Sentinel.ResourceGroupName}).ResourceId
+	$AzureArcSp = New-AzADServicePrincipal -DisplayName $AzureArcSpName -Role "Azure Connected Machine Onboarding" -EndDate "2030-12-31T05:00:00Z" -Scope $ResourceGroupId
+	
+	Write-Host "`nService Principal App ID = " -NoNewline
+	Write-Host $AzureArcSp.AppId -ForegroundColor cyan
+	Write-Host "Service Principal App Secret = " -NoNewline
+	Write-Host $AzureArcSp.PasswordCredentials.SecretText -ForegroundColor cyan
+	Write-Host "`nPlease add the Service Principal App Secret to CMDB for the customer as a new credential." -ForegroundColor yellow
+	
+	do{
+		Write-Host "`nOnce the app secret is gone it cannot be retrieved later. Make sure you copy the app secret before proceeding." -ForegroundColor red
+		Write-Host "Did you copy the app secret and add it to CMDB (y/n)? "  -NoNewline
+		$confirm = Read-Host
+	}
+	while($confirm -ne 'y')
+}
+
+#This function will check if there is an exisitng service principal for Azure ARC installs.
+#If not it will create one. If there is it will ask to delete the existing and then create a new one.
+function ServicePrincipal{
+	$AzureArcSpName = "MsspAgentDeploy"
+	$AzureArcSp = Get-AzADServicePrincipal -DisplayName $AzureArcSpName
+
+	if($null -eq $AzureArcSp){
+		CreateNewServicePrincipal
+	}
+	else{
+		Write-Host "`nService principal for Azure ARC installs already exists." -ForegroundColor green
+		do{
+			Write-Host "Do you want to delete the existing one and create a new one (y/n)? "  -NoNewline
+			$confirm = Read-Host
+		}
+		while($confirm -ne 'y' -and $confirm -ne 'n')
+		
+		if($confirm -eq 'y'){
+			Write-Host "`nDeleting service principal " -NoNewline -ForegroundColor red
+			Write-Host $AzureArcSpName -NoNewline
+			Remove-AzADServicePrincipal -DisplayName $AzureArcSpName
+			
+			CreateNewServicePrincipal
+		}
+	}
+}
+
 #This function will need to be configured in order to get us our output that will 
 function DeployAnalyticalRules {
     #The following below is used in order to set our context working directory back to our primary Sentinel tenant. We then reauth to the subscription under this AD user versus our Ntirety Principal User.
@@ -401,6 +449,10 @@ function DeployAnalyticalRules {
         $temp = Get-AzStorageBlobContent -Context $StorageAccAuth -Blob $_ -Container $ContainerName -Destination $FilePath
     })
 
+	Write-Host "Deploying rules to resource group " -NoNewline
+	Write-Host $ResourceGroup -NoNewline -ForegroundColor cyan
+	Write-Host " and workspace " -NoNewline
+	Write-Host $WorkspaceName -NoNewline -ForegroundColor cyan
     #Can use the raw JSON files in order to deploy the analytical rules the params that are needed are the workspace & potentially the region.
     $AnalyticalRules.ForEach({
         $temp = New-AzResourceGroupDeployment -Name $_ -ResourceGroupName $ResourceGroup -TemplateFile $FilePath/$_ -Workspace $WorkspaceName -AsJob
@@ -486,12 +538,12 @@ function NewBuild {
         Clear-Host
         GatherInfo
         Write-Host "`n`t`t New Build`n"
-        Write-Host -ForegroundColor DarkCyan "Type YES to continue with new build (case-sensitive)"
+        Write-Host -ForegroundColor Magenta "Type YES to continue with new build"
 
         $subMenu1 = Read-Host "`nSelection (q to return to main menu)"
 
         # Continue
-        if($subMenu1 -ceq 'YES'){
+        if($subMenu1 -eq 'YES'){
 			Clear-Host
             Write-Host "`nDeploying Sentinel Build..."
             Write-Host "`nRegistering resource providers..."
@@ -512,6 +564,9 @@ function NewBuild {
             Write-Host "`nDeploying data connectors..."
 			DataConnectors
             ErrorCheck -FunctionName "DataConnectors"
+			Write-Host "`nCreating new service principal..."
+            ServicePrincipal
+			ErrorCheck -FunctionName "ServicePrincipal"
             Write-Host "`nDeploying analytical rules..."
 			DeployAnalyticalRules 
 			ErrorCheck -FunctionName "DeployAnalyticalRules"
@@ -545,6 +600,8 @@ function ExistingBuild {
 		Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "6"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
             Write-Host -ForegroundColor DarkCyan " Deploy Data Connectors"
 		Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "7"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
+            Write-Host -ForegroundColor DarkCyan " Create Service Principal"
+		Write-Host -ForegroundColor DarkCyan -NoNewline "`n["; Write-Host -NoNewline "8"; Write-Host -ForegroundColor DarkCyan -NoNewline "]"; `
             Write-Host -ForegroundColor DarkCyan " Deploy Analytical Rules"
 		
         $subMenu2 = Read-Host "`nSelection (q to return to main menu)"
@@ -617,6 +674,17 @@ function ExistingBuild {
         }
 		# Option 7
         if($subMenu2 -eq 7){
+			Clear-Host
+			Write-Host "`nCreating new service principal..."
+            ServicePrincipal
+			ErrorCheck -FunctionName "ServicePrincipal"
+            # Pause and wait for input before going back to the menu
+            Write-Host -ForegroundColor DarkCyan "`nScript execution complete!"
+            Write-Host "`nPress any key to return to the previous menu"
+            [void][System.Console]::ReadKey($true)
+        }
+		# Option 8
+        if($subMenu2 -eq 8){
 			Clear-Host
 			Write-Host "`nDeploying analytical rules..."
             DeployAnalyticalRules
