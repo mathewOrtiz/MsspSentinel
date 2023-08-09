@@ -223,7 +223,7 @@ function DeploySentinel{
         "Production" = "False"
     }
 
-    $global:CustHNumber += "AzureSentinel"
+	$global:CustHNumber += "AzureSentinel"
 
     do{        
         Write-Host "`nConfirm the following..." -ForegroundColor $DefaultColor
@@ -426,10 +426,9 @@ function ServicePrincipal{
 #This function will need to be configured in order to get us our output that will 
 function DeployAnalyticalRules {
     #The following below is used in order to set our context working directory back to our primary Sentinel tenant. We then reauth to the subscription under this AD user versus our Ntirety Principal User.
-    $temp = Set-AzContext -Tenant $global:HomeContext
-    $temp = Set-AzContext -Subscription $global:AzSubscription
+    $temp = Set-AzContext -Tenant $global:HomeContext -Subscription $global:AzSubscription
 
-    Get-AzContext
+	Get-AzContext
 
     #We create the storage context which will use our Azure AD credentials to authenticate to the Blob in order to auth to our files
     $StorageAccAuth = (New-AzStorageContext -StorageAccountName $global:StorageAccount)
