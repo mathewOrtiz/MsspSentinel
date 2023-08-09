@@ -429,7 +429,7 @@ function DeployAnalyticalRules {
     $temp = Set-AzContext -Tenant $global:HomeContext
     $temp = Set-AzContext -Subscription $global:AzSubscription
 
-    Get-Context
+    Get-AzContext
 
     #We create the storage context which will use our Azure AD credentials to authenticate to the Blob in order to auth to our files
     $StorageAccAuth = (New-AzStorageContext -StorageAccountName $global:StorageAccount)
