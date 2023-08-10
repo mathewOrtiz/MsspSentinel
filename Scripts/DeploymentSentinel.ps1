@@ -377,7 +377,7 @@ function DataConnectors{
 
 #This function creates a new service principal for Azure ARC installs.
 function CreateNewServicePrincipal{
-	Write-Host "Creating new service principal for Azure ARC installs" -ForegroundColor green
+	Write-Host "`nCreating new service principal for Azure ARC installs" -ForegroundColor green
 	$Sentinel = (Get-AzOperationalInsightsWorkspace | Where-Object {$_.Tags.Production -eq "False"}) | Select-Object -Property Name, ResourceGroupName
 	$ResourceGroupId = (Get-AzResourceGroup | Where-Object {$_.ResourceGroupName -eq $Sentinel.ResourceGroupName}).ResourceId
 	$AzureArcSp = New-AzADServicePrincipal -DisplayName $AzureArcSpName -Role "Azure Connected Machine Onboarding" -EndDate "2030-12-31T05:00:00Z" -Scope $ResourceGroupId
