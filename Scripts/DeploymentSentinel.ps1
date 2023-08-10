@@ -448,7 +448,7 @@ function DeployAnalyticalRules {
     Write-Host $global:StorageAccount -ForegroundColor $DefaultColor
 
     $AnalyticalRules.foreach({
-        $temp = Get-AzStorageBlobContent -Context $StorageAccAuth -Blob $_ -Container $ContainerName -Destination $FilePath
+        $temp = Get-AzStorageBlobContent -Context $StorageAccAuth -Blob $_ -Container $global:StorageContainer -Destination $FilePath
     })
 
 	Write-Host "Deploying rules to resource group " -NoNewline
@@ -504,8 +504,8 @@ function WelcomeBanner{
     Write-Host "`nWelcome to the Ntirety Sentinel Deployment Script`n"
     Write-Host "Written by Mat Ortiz with a little help from Marc Ackermann"
     Write-Host "Any bugs or issues....hit up Mat :)"
-    Write-Host "Version: 1.0"
-    Write-Host "Release Date: June 27, 2023"
+    Write-Host "Version: 1.1"
+    Write-Host "Release Date: August 10, 2023"
     Write-Host "`nPlease choose a menu option below to get started"-ForegroundColor $DefaultColor
 }
 
