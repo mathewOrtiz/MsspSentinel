@@ -32,6 +32,7 @@ $global:AzSubscription = ""
 $global:Location = ""
 $global:CustHNumber = ""
 $global:StorageAccount = "scriptsentinel"
+$global:StorageContainer = "analyticalrules"
 
 function GatherInfo{
     #The following is used in order to configure the necessary context to the new customer subscription.
@@ -432,8 +433,8 @@ function DeployAnalyticalRules {
 
     #We create the storage context which will use our Azure AD credentials to authenticate to the Blob in order to auth to our files
     $StorageAccAuth = (New-AzStorageContext -StorageAccountName $global:StorageAccount)
-    $ContainerName = ((Get-AzStorageContainer -Context $StorageAccAuth).Name)
-    $AnalyticalRules = @((Get-AzStorageBlob -Context $StorageAccAuth -Container $ContainerName).Name)   
+    #$ContainerName = ((Get-AzStorageContainer -Context $StorageAccAuth).Name)
+    $AnalyticalRules = @((Get-AzStorageBlob -Context $StorageAccAuth -Container $global:StorageContainer).Name)   
     #$ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern})
     #$WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern})
     $Sentinel = (Get-AzOperationalInsightsWorkspace | Where-Object {$_.Tags.Production -eq "False"}) | Select-Object -Property Name, ResourceGroupName
