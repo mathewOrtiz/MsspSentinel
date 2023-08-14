@@ -32,6 +32,7 @@ $global:AzSubscription = ""
 $global:Location = ""
 $global:CustHNumber = ""
 $global:StorageAccount = "scriptsentinel"
+$global:StorageContainer = "analyticalrules"
 
 function GatherInfo{
     #The following is used in order to configure the necessary context to the new customer subscription.
@@ -428,12 +429,12 @@ function DeployAnalyticalRules {
     #The following below is used in order to set our context working directory back to our primary Sentinel tenant. We then reauth to the subscription under this AD user versus our Ntirety Principal User.
     $temp = Set-AzContext -Tenant $global:HomeContext -Subscription $global:AzSubscription
 
-	Get-AzContext
+	#Get-AzContext
 
     #We create the storage context which will use our Azure AD credentials to authenticate to the Blob in order to auth to our files
     $StorageAccAuth = (New-AzStorageContext -StorageAccountName $global:StorageAccount)
-    $ContainerName = ((Get-AzStorageContainer -Context $StorageAccAuth).Name)
-    $AnalyticalRules = @((Get-AzStorageBlob -Context $StorageAccAuth -Container $ContainerName).Name)   
+    #$ContainerName = ((Get-AzStorageContainer -Context $StorageAccAuth).Name)
+    $AnalyticalRules = @((Get-AzStorageBlob -Context $StorageAccAuth -Container $global:StorageContainer).Name)   
     #$ResourceGroup = ((Get-AzResourceGroup).ResourceGroupName | Where-Object {$_ -match $pattern})
     #$WorkspaceName = ((Get-AzOperationalInsightsWorkspace).Name | Where-Object {$_ -match $pattern})
     $Sentinel = (Get-AzOperationalInsightsWorkspace | Where-Object {$_.Tags.Production -eq "False"}) | Select-Object -Property Name, ResourceGroupName
@@ -447,7 +448,7 @@ function DeployAnalyticalRules {
     Write-Host $global:StorageAccount -ForegroundColor $DefaultColor
 
     $AnalyticalRules.foreach({
-        $temp = Get-AzStorageBlobContent -Context $StorageAccAuth -Blob $_ -Container $ContainerName -Destination $FilePath
+        $temp = Get-AzStorageBlobContent -Context $StorageAccAuth -Blob $_ -Container $global:StorageContainer -Destination $FilePath
     })
 
 	Write-Host "Deploying rules to resource group " -NoNewline
@@ -503,8 +504,8 @@ function WelcomeBanner{
     Write-Host "`nWelcome to the Ntirety Sentinel Deployment Script`n"
     Write-Host "Written by Mat Ortiz with a little help from Marc Ackermann"
     Write-Host "Any bugs or issues....hit up Mat :)"
-    Write-Host "Version: 1.0"
-    Write-Host "Release Date: June 27, 2023"
+    Write-Host "Version: 1.1"
+    Write-Host "Release Date: August 10, 2023"
     Write-Host "`nPlease choose a menu option below to get started"-ForegroundColor $DefaultColor
 }
 
