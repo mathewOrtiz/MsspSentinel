@@ -284,9 +284,9 @@ function PolicyCreation{
     
     #need to see if the variables being assigned here is really necessary. 
     Write-Host "Assigning Azure policies"
-    $temp = New-AzPolicyAssignment -Name $WinAssignName -PolicyDefinition $DefinitionWin -PolicyParameterObject @{"logAnalytics"="$WorkspaceName"} -AssignIdentity -Location $global:Location -WarningAction Ignore
-    $temp = New-AzPolicyAssignment -Name $LinAssignName -PolicyDefinition $DefinitionLinux -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location $global:Location -WarningAction Ignore
-    $temp = New-AzPolicyAssignment -Name $ActivityName -PolicyDefinition $DefinitionActivity -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location $global:Location -WarningAction Ignore
+    $temp = New-AzPolicyAssignment -Name $WinAssignName -PolicyDefinition $DefinitionWin -PolicyParameterObject @{"logAnalytics"="$WorkspaceName"} -AssignIdentity -IdentityType SystemAssigned -Location $global:Location -WarningAction Ignore
+    $temp = New-AzPolicyAssignment -Name $LinAssignName -PolicyDefinition $DefinitionLinux -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -IdentityType SystemAssigned -Location $global:Location -WarningAction Ignore
+    $temp = New-AzPolicyAssignment -Name $ActivityName -PolicyDefinition $DefinitionActivity -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -IdentityType SystemAssigned -Location $global:Location -WarningAction Ignore
     #Now we need to fetch the policy -Id of the above. 
     
     $PolicyAssignWind = (Get-AzPolicyAssignment -Name $WinAssignName -WarningAction Ignore).PolicyAssignmentId
