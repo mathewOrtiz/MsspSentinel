@@ -20,6 +20,7 @@ $SentinelResponder = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Responder')
 $LogAnalyticsReader = (Get-AzRoleDefinition -Name 'Log Analytics Reader').Id
 $TagContrib = (Get-AzRoleDefinition -Name 'Tag Contributor').Id
 $SentinelReaderRole = (Get-AzRoleDefinition -Name 'Reader').Id
+$UserAccessAdmin = (Get-AzRoleDefinition -Name 'User Access Administrator').Id
 $DisplayNameEng = "Security Engineer"
 $DisplayNameL1 = "SOC L1"
 $DisplaynameL2 = "SOC L2"
@@ -141,6 +142,11 @@ function LightHouseConnection{
                 @{
                     principalId = $SocEngObjectId
                     roleDefinitionId = $ManagedIdContrib
+                    principalIdDisplayName = "$DisplayNameEng"
+                }
+                @{
+                    principalId = $SocEngObjectId
+                    roleDefinitionId = $UserAccessAdmin
                     principalIdDisplayName = "$DisplayNameEng"
                 }
                 @{
