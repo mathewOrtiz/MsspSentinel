@@ -22,6 +22,9 @@ $TagContrib = (Get-AzRoleDefinition -Name 'Tag Contributor').Id
 $SentinelReaderRole = (Get-AzRoleDefinition -Name 'Reader').Id
 $UserAccessAdmin = (Get-AzRoleDefinition -Name 'User Access Administrator').Id
 $KeyVaultContrib = (Get-AzRoleDefinition -Name 'Key Vault Contributor').Id
+$AzureConnectedMachineOnboard = (Get-AzRoleDefinition -Name 'Azure Connected Machine Onboarding').Id
+$HybridServerOnboard = (Get-AzRoleDefinition -Name 'Hybrid Server Onboarding').Id
+$KubernetesClusterOnboard = (Get-AzRoleDefinition -Name 'Kubernetes Cluster - Azure Arc Onboarding').Id
 $DisplayNameEng = "Security Engineer"
 $DisplayNameL1 = "SOC L1"
 $DisplaynameL2 = "SOC L2"
@@ -149,6 +152,11 @@ function LightHouseConnection{
                     principalId = $SocEngObjectId
                     roleDefinitionId = $UserAccessAdmin
                     principalIdDisplayName = "$DisplayNameEng"
+                    delegatedRoleDefinitionIds = @{
+                        "$AzureConnectedMachineOnboard"
+                        "$HybridServerOnboard"
+                        "$KubernetesClusterOnboard"
+                    }
                 }
                 @{
                     principalId = $SocEngObjectId
