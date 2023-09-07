@@ -21,6 +21,7 @@ $LogAnalyticsReader = (Get-AzRoleDefinition -Name 'Log Analytics Reader').Id
 $TagContrib = (Get-AzRoleDefinition -Name 'Tag Contributor').Id
 $SentinelReaderRole = (Get-AzRoleDefinition -Name 'Reader').Id
 $UserAccessAdmin = (Get-AzRoleDefinition -Name 'User Access Administrator').Id
+$KeyVaultContrib = (Get-AzRoleDefinition -Name 'Key Vault Contributor').Id
 $DisplayNameEng = "Security Engineer"
 $DisplayNameL1 = "SOC L1"
 $DisplaynameL2 = "SOC L2"
@@ -76,7 +77,7 @@ This can be retrieved from the Azure AD overview page. Customer Tenant ID: " -Fo
 #Begin the functions 
 function ResourceProviders{
     #The below needs to be populated With the necessary namespaces as well as creating a array with the required resource providers.
-    $RequiredProviderCheck =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights','Microsoft.HybridConnectivity','Microsoft.ManagedIdentity','Microsoft.AzureArcData','Microsoft.OperationsManagement','microsoft.insights','Microsoft.HybridCompute','Microsoft.GuestConfiguration','Microsoft.Automanage','Microsoft.MarketplaceNotifications','Microsoft.ManagedServices')
+    $RequiredProviderCheck =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights','Microsoft.HybridConnectivity','Microsoft.ManagedIdentity','Microsoft.AzureArcData','Microsoft.OperationsManagement','microsoft.insights','Microsoft.HybridCompute','Microsoft.GuestConfiguration','Microsoft.Automanage','Microsoft.MarketplaceNotifications','Microsoft.ManagedServices', 'Microsoft.Web')
     
     #The following loop will work through the subscription in order to register all of the resource providers we need for our resources. 
     foreach($Provider in $RequiredProviderCheck){
@@ -147,6 +148,11 @@ function LightHouseConnection{
                 @{
                     principalId = $SocEngObjectId
                     roleDefinitionId = $UserAccessAdmin
+                    principalIdDisplayName = "$DisplayNameEng"
+                }
+                @{
+                    principalId = $SocEngObjectId
+                    roleDefinitionId = $KeyVaultContrib
                     principalIdDisplayName = "$DisplayNameEng"
                 }
                 @{
