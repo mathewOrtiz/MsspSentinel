@@ -152,11 +152,11 @@ function LightHouseConnection{
                     principalId = $SocEngObjectId
                     roleDefinitionId = $UserAccessAdmin
                     principalIdDisplayName = "$DisplayNameEng"
-                    delegatedRoleDefinitionIds = @{
-                        "$AzureConnectedMachineOnboard"
-                        "$HybridServerOnboard"
-                        "$KubernetesClusterOnboard"
-                    }
+                    delegatedRoleDefinitionIds = @(
+                        $AzureConnectedMachineOnboard
+                        $HybridServerOnboard
+                        $KubernetesClusterOnboard
+                    )
                 }
                 @{
                     principalId = $SocEngObjectId
