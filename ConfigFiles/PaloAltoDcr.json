@@ -27,7 +27,7 @@
       "dataFlows": [
         {
           "streams": [
-            
+            "Microsoft-CommonSecurityLog"
           ],
           "destinations": [
             "DataCollection"
@@ -35,7 +35,7 @@
         },
         {
             "streams": [
-                
+                "Microsoft-CommonSecurityLog"
             ],
             "destinations":[
                 "DataCollectionEvent"
