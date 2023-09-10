@@ -1,0 +1,48 @@
+{
+    "properties": {
+      "dataSources": {
+        "syslog": [
+          {
+            "streams": [
+              "Microsoft-CommonSecurityLog"
+            ],
+             "facilityNames": [
+                  "local0",
+                   "user"
+            ],
+            "logLevels":[
+
+           ],
+            "name": "PaloAltoFirewall"
+          }
+        ]
+      },
+      "destinations": {
+        "logAnalytics": [
+                {
+          "name": "DataCollectionEvent"
+                 }
+        ]
+      },
+      "dataFlows": [
+        {
+          "streams": [
+            
+          ],
+          "destinations": [
+            "DataCollection"
+          ]
+        },
+        {
+            "streams": [
+                
+            ],
+            "destinations":[
+                "DataCollectionEvent"
+            ],
+            "transformKql": "source | where Activity == 'TRAFFIC'",
+          "outputStream": "Custom-CommonSecurityLog_CL"
+         }
+      ]
+    }
+  }
