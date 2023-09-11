@@ -20,6 +20,11 @@ $SentinelResponder = (Get-AzRoleDefinition -Name 'Microsoft Sentinel Responder')
 $LogAnalyticsReader = (Get-AzRoleDefinition -Name 'Log Analytics Reader').Id
 $TagContrib = (Get-AzRoleDefinition -Name 'Tag Contributor').Id
 $SentinelReaderRole = (Get-AzRoleDefinition -Name 'Reader').Id
+$UserAccessAdmin = (Get-AzRoleDefinition -Name 'User Access Administrator').Id
+$KeyVaultContrib = (Get-AzRoleDefinition -Name 'Key Vault Contributor').Id
+$AzureConnectedMachineOnboard = (Get-AzRoleDefinition -Name 'Azure Connected Machine Onboarding').Id
+$HybridServerOnboard = (Get-AzRoleDefinition -Name 'Hybrid Server Onboarding').Id
+$KubernetesClusterOnboard = (Get-AzRoleDefinition -Name 'Kubernetes Cluster - Azure Arc Onboarding').Id
 $DisplayNameEng = "Security Engineer"
 $DisplayNameL1 = "SOC L1"
 $DisplaynameL2 = "SOC L2"
@@ -75,7 +80,7 @@ This can be retrieved from the Azure AD overview page. Customer Tenant ID: " -Fo
 #Begin the functions 
 function ResourceProviders{
     #The below needs to be populated With the necessary namespaces as well as creating a array with the required resource providers.
-    $RequiredProviderCheck =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights','Microsoft.HybridConnectivity','Microsoft.ManagedIdentity','Microsoft.AzureArcData','Microsoft.OperationsManagement','microsoft.insights','Microsoft.HybridCompute','Microsoft.GuestConfiguration','Microsoft.Automanage','Microsoft.MarketplaceNotifications','Microsoft.ManagedServices')
+    $RequiredProviderCheck =  @('Microsoft.SecurityInsights', 'Microsoft.OperationalInsights','Microsoft.PolicyInsights','Microsoft.HybridConnectivity','Microsoft.ManagedIdentity','Microsoft.AzureArcData','Microsoft.OperationsManagement','microsoft.insights','Microsoft.HybridCompute','Microsoft.GuestConfiguration','Microsoft.Automanage','Microsoft.MarketplaceNotifications','Microsoft.ManagedServices', 'Microsoft.Web')
     
     #The following loop will work through the subscription in order to register all of the resource providers we need for our resources. 
     foreach($Provider in $RequiredProviderCheck){
@@ -141,6 +146,21 @@ function LightHouseConnection{
                 @{
                     principalId = $SocEngObjectId
                     roleDefinitionId = $ManagedIdContrib
+                    principalIdDisplayName = "$DisplayNameEng"
+                }
+                @{
+                    principalId = $SocEngObjectId
+                    roleDefinitionId = $UserAccessAdmin
+                    principalIdDisplayName = "$DisplayNameEng"
+                    delegatedRoleDefinitionIds = @(
+                        $AzureConnectedMachineOnboard
+                        $HybridServerOnboard
+                        $KubernetesClusterOnboard
+                    )
+                }
+                @{
+                    principalId = $SocEngObjectId
+                    roleDefinitionId = $KeyVaultContrib
                     principalIdDisplayName = "$DisplayNameEng"
                 }
                 @{
@@ -284,9 +304,9 @@ function PolicyCreation{
     
     #need to see if the variables being assigned here is really necessary. 
     Write-Host "Assigning Azure policies"
-    $temp = New-AzPolicyAssignment -Name $WinAssignName -PolicyDefinition $DefinitionWin -PolicyParameterObject @{"logAnalytics"="$WorkspaceName"} -AssignIdentity -Location $global:Location -WarningAction Ignore
-    $temp = New-AzPolicyAssignment -Name $LinAssignName -PolicyDefinition $DefinitionLinux -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location $global:Location -WarningAction Ignore
-    $temp = New-AzPolicyAssignment -Name $ActivityName -PolicyDefinition $DefinitionActivity -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -Location $global:Location -WarningAction Ignore
+    $temp = New-AzPolicyAssignment -Name $WinAssignName -PolicyDefinition $DefinitionWin -PolicyParameterObject @{"logAnalytics"="$WorkspaceName"} -AssignIdentity -IdentityType SystemAssigned -Location $global:Location -WarningAction Ignore
+    $temp = New-AzPolicyAssignment -Name $LinAssignName -PolicyDefinition $DefinitionLinux -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -IdentityType SystemAssigned -Location $global:Location -WarningAction Ignore
+    $temp = New-AzPolicyAssignment -Name $ActivityName -PolicyDefinition $DefinitionActivity -PolicyParameterObject @{"logAnalytics"="$workspaceName"} -AssignIdentity -IdentityType SystemAssigned -Location $global:Location -WarningAction Ignore
     #Now we need to fetch the policy -Id of the above. 
     
     $PolicyAssignWind = (Get-AzPolicyAssignment -Name $WinAssignName -WarningAction Ignore).PolicyAssignmentId
