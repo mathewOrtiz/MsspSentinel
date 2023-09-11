@@ -525,7 +525,7 @@ function WelcomeBanner{
     Write-Host "Written by Mat Ortiz with a little help from Marc Ackermann"
     Write-Host "Any bugs or issues....hit up Mat :)"
     Write-Host "Version: 1.1"
-    Write-Host "Release Date: August 10, 2023"
+    Write-Host "Release Date: September 11th, 2023"
     Write-Host "`nPlease choose a menu option below to get started"-ForegroundColor $DefaultColor
 }
 
