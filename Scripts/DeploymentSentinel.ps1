@@ -25,6 +25,7 @@ $KeyVaultContrib = (Get-AzRoleDefinition -Name 'Key Vault Contributor').Id
 $AzureConnectedMachineOnboard = (Get-AzRoleDefinition -Name 'Azure Connected Machine Onboarding').Id
 $HybridServerOnboard = (Get-AzRoleDefinition -Name 'Hybrid Server Onboarding').Id
 $KubernetesClusterOnboard = (Get-AzRoleDefinition -Name 'Kubernetes Cluster - Azure Arc Onboarding').Id
+$StorageAccountContrib = (Get-AzRoleDefinition -Name 'Storage Account Contributor').Id
 $DisplayNameEng = "Security Engineer"
 $DisplayNameL1 = "SOC L1"
 $DisplaynameL2 = "SOC L2"
@@ -161,6 +162,11 @@ function LightHouseConnection{
                 @{
                     principalId = $SocEngObjectId
                     roleDefinitionId = $KeyVaultContrib
+                    principalIdDisplayName = "$DisplayNameEng"
+                }
+                @{
+                    principalId = $SocEngObjectId
+                    roleDefinitionId = $StorageAccountContrib
                     principalIdDisplayName = "$DisplayNameEng"
                 }
                 @{
@@ -524,8 +530,8 @@ function WelcomeBanner{
     Write-Host "`nWelcome to the Ntirety Sentinel Deployment Script`n"
     Write-Host "Written by Mat Ortiz with a little help from Marc Ackermann"
     Write-Host "Any bugs or issues....hit up Mat :)"
-    Write-Host "Version: 1.1"
-    Write-Host "Release Date: September 11th, 2023"
+    Write-Host "Version: 1.2"
+    Write-Host "Release Date: September 20th, 2023"
     Write-Host "`nPlease choose a menu option below to get started"-ForegroundColor $DefaultColor
 }
 
